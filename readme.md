@@ -1,0 +1,3 @@
+# Senior Project Demo
+
+> **BACKGROUND** For my senior (high school) english class I am required to create a year-long project exploring an interest of mine. I have chosen to create a predictive software that generates Pandora recipes based on your unique tastes. In order to demonstrate my work on exhibition night, I require a demo that is easily understandable for people with little to no programming experience.
