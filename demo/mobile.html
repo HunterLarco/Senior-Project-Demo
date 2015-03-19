@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<style>
+
+body{
+  position:fixed;
+  top:0px;
+  left:0px;
+  right:0px;
+  bottom:0px;
+  
+  overflow:hidden;
+}
+
+.centered{
+  position:absolute;
+  top:50%;
+  left:50%;
+  
+  -webkit-transform:translate(-50%, -50%);
+  -moz-transform:   translate(-50%, -50%);
+  -mos-transform:   translate(-50%, -50%);
+  -o-transform:     translate(-50%, -50%);
+  transform:        translate(-50%, -50%);
+}
+.swatches{
+  white-space:nowrap;
+  
+  overflow:visible;
+  height:404px;
+  width:760px;
+}
+
+.swatch{
+  display:inline-block;
+  vertical-align:bottom;
+  
+  position:relative;
+  top:0px;
+  
+  margin:30px;
+  
+  height:     320px;
+  width:      320px;
+  line-height:320px;
+  
+  text-align:center;
+  font-size:26px;
+  font-family:arial;
+  font-weight:300;
+  text-transform:uppercase;
+  
+  color:rgb(0,0,0);
+  background:rgb(102,201,215);
+  
+  padding-bottom:24px;
+  box-shadow:inset 0px -24px 0px 0px rgba(0,0,0,0.25);
+  
+  -webkit-border-radius:20px;
+  -moz-border-radius:   20px;
+  border-radius:        20px;
+  
+  cursor:pointer;
+  
+  -webkit-transition:height 100ms, box-shadow 100ms, top 500ms 300ms, opacity 500ms 300ms;
+  -moz-transition:   height 100ms, box-shadow 100ms, top 500ms 300ms, opacity 500ms 300ms;
+  transition:        height 100ms, box-shadow 100ms, top 500ms 300ms, opacity 500ms 300ms;
+}
+.swatch.white{
+  color:rgb(255,255,255);
+}
+
+.swatch.active{
+  height:300px;
+  
+  box-shadow:inset 0px -4px 0px 0px rgba(0,0,0,0.25);
+}
+.swatch.faster{
+  -webkit-transition:height 100ms, box-shadow 100ms, top 500ms 200ms, opacity 500ms 200ms;
+  -moz-transition:   height 100ms, box-shadow 100ms, top 500ms 200ms, opacity 500ms 200ms;
+  transition:        height 100ms, box-shadow 100ms, top 500ms 200ms, opacity 500ms 200ms;
+}
+
+.container{
+  position:absolute;
+  top:0px;
+  left:0px;
+}
+
+.container.up .swatch{
+  top:-130px;
+  opacity:0;
+}
+.container.down .swatch{
+  top:130px;
+  opacity:0;
+}
+
+</style>
+<html>
+<head>
+
+<title></title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/classie.js'></script>
+<script src='/resources/scripts/overload.min.js'></script>
+<script src='/resources/scripts/requestAnimFrame.js'></script>
+
+</head>
+<body>
+
+
+<div class='centered swatches'></div>
+
+
+<script type='text/javascript'>
+(function(){
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    AddSwatches(1);
+  }
+  
+  function AddSwatches(faster){
+    var container = document.createElement('div');
+    classie.add(container, 'container');
+    classie.add(container, 'down');
+    
+    var s1 = document.createElement('div');
+    classie.add(s1, 'swatch');
+    s1.innerHTML = 'DEMO TEXT';
+    
+    var s2 = document.createElement('div');
+    classie.add(s2, 'swatch');
+    classie.add(s2, 'white');
+    s2.innerHTML = 'DEMO TEXT';
+    
+    if(faster == 1) classie.add(s1, 'faster');
+    if(faster == 2) classie.add(s2, 'faster');
+    
+    container.appendChild(s1);
+    container.appendChild(s2);
+    
+    var swatches = document.querySelector('.swatches');
+    swatches.appendChild(container);
+    
+    BindSwatches(container, s1, s2);
+    
+    setTimeout(function(){
+      classie.remove(container, 'down');
+      setTimeout(function(){
+        classie.remove(s1, 'faster');
+        classie.remove(s2, 'faster');
+      }, 500);
+    }, 200);
+  }
+  
+  function BindSwatches(container, s1, s2){
+    var clicked = false;
+    
+    s1.addEventListener('click', function(){
+      if(clicked) return;
+      clicked = true;
+      
+      classie.add(s1, 'active');
+      classie.add(s1, 'faster');
+      
+      classie.add(container, 'up');
+      
+      setTimeout(function(){
+        container.parentElement.removeChild(container);
+      }, 1200);
+      
+      setTimeout(function(){
+        AddSwatches(1);
+      }, 200);
+    });
+    s2.addEventListener('click', function(){
+      if(clicked) return;
+      clicked = true;
+      
+      classie.add(s2, 'active');
+      classie.add(s2, 'faster');
+      
+      classie.add(container, 'up');
+      
+      setTimeout(function(){
+        container.parentElement.removeChild(container);
+      }, 1500);
+      
+      setTimeout(function(){
+        AddSwatches(2);
+      }, 500);
+    });
+  }
+  
+})();
+</script>
+</body>
+</html>
