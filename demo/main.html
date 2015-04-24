@@ -110,81 +110,109 @@ canvas{
 
 <div class='tapanywhere'>Tap Anywhere to Begin</div>
 
-<canvas class='foreground'></canvas>
-
-
 <script type='text/javascript'>
 (function(){
   
   window.addEventListener('load', Init);
   
   function Init(){
-    GenParticles(30);
-    var background = LoadCanvas(
-      [document.querySelector('canvas.background'),
-      document.querySelector('canvas.foreground')],
-      RenderBackground
-    );
+    var background = LoadCanvas(document.querySelector('canvas.background'), RenderBackground);
     background.start();
   }
   
-  var particles = [];
+  var boids = [];
   
-  var GenParticles = Overload.function();
-  GenParticles.overload(function(){
-    particles.push({
-      x: (Math.random()*2-1)*1.3,
-      y: (Math.random()*2-1)*1.3,
-      z: (Math.random()*2-1)*1.3
-    });
+  var GenBoids = Overload.function();
+  GenBoids.overload(function(){
+    this(0, 0);
   });
-  GenParticles.overload(function(num){
+  GenBoids.overload(function(num){
     for(var i=0; i<num; i++)
       this();
   });
+	GenBoids.overload(function(x, y){
+		boids.push({
+			x: x,
+			y: y,
+			lx: x,
+			ly: y,
+			wander: 0,
+			dir: 0
+		});
+	});
+  
+	function MoveBoid(point){
+		// adapted from https://www.khanacademy.org/computer-programming/boid-seek-arrive-wander-behaviors/5939360759808000
+		
+		const velocity = 5;
+		const wanderR = 30;
+		const wanderD = 40;
+		const change = 4 *Math.PI/180;
+		
+		point.lx = point.x;
+		point.ly = point.y;
+		
+		point.wander += (Math.random()-0.5)*2 * change;
+
+		var circle = {
+			x: point.x + wanderD*Math.cos(point.dir),
+			y: point.y + wanderD*Math.sin(point.dir)
+		}
+		
+		var dest = {
+			x: circle.x + wanderR*Math.cos(point.wander),
+			y: circle.y + wanderR*Math.sin(point.wander)
+		}
+
+		point.dir = Math.atan2(dest.y-circle.y, dest.x-circle.x);
+		point.x += velocity * Math.cos(point.dir);
+		point.y += velocity * Math.sin(point.dir);
+	}
   
   function RenderBackground(canvases, contexts, width, height){
-    var bctx = contexts[0],
-        fctx = contexts[1];
+    if(boids.length == 0)
+      for(var i=0; i<8; i++)
+        GenBoids(0, height/2);
     
+    var ctx = contexts[0];
     
-    bctx.clearRect(0, 0, width, height);
-    fctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(255,255,255,0.17)';
+    ctx.fillRect(0,0,width,height);
     
-    var zBuffer = new Heap(function CompareTo(a,b){return a.z > b.z;});
-    
-    for(var i=0,particle; particle=particles[i++];){
-      zBuffer.push(particle);
-      particles[i-1] = Point3.Rotate(particle, 0.00125, 0.00125/2 * Math.sin(Math.PI*2 * (Date.now() % 40000) / 40000 ));
+    ctx.lineCap = 'square';
+
+    for(var i=boids.length,boid; boid=boids[--i];){
+    	ctx.lineWidth = 3;
+    	ctx.strokeStyle = 'rgb(230,230,230)';
+	
+    	ctx.beginPath();
+    	ctx.moveTo(boid.lx, boid.ly);
+    	ctx.lineTo(boid.x, boid.y);
+    	ctx.stroke();
+	
+    	ctx.lineWidth = 1;
+    	ctx.strokeStyle = 'rgb(255,0,255)';
+	
+    	ctx.beginPath();
+    	ctx.moveTo(boid.x, boid.y);
+    	MoveBoid(boid);
+    	ctx.lineTo(boid.x, boid.y);
+    	ctx.stroke();
+	
+    	if(boid.x > width+5){
+    		boids.splice(i, 1);
+    		GenBoids(0, boid.y);
+    	}else if(boid.x < -5){
+    		boids.splice(i, 1);
+    		GenBoids(width, boid.y);
+    	}else if(boid.y > height+5){
+    		boids.splice(i, 1);
+    		GenBoids(boid.x, 0);
+    	}else if(boid.y < -5){
+    		boids.splice(i, 1);
+    		GenBoids(boid.x, height);
+    	}
     }
-    
-    while(zBuffer.size() > 0){
-      var particle = zBuffer.pop();
-      
-      var x = (Point3.Flatten(particle).x+1)/2*width,
-          y = (Point3.Flatten(particle).y+1)/2*height,
-          r = Math.exp(-particle.z/2) * 7;
-  
-      var ctx = particle.z > 0 ? bctx : fctx;
-  
-      ctx.fillStyle = 'rgba(0,0,0,0.125)';
-  
-      ctx.beginPath();
-      DrawPolygon(ctx, x, y, 6, r);
-      ctx.fill();
-    }
-  }
-  
-  function DrawPolygon(ctx, x, y, sides, radius){
-    for(var i=0; i<sides; i++){
-      var angle = i/sides*Math.PI*2;
-      (i == 0 ? ctx.moveTo : ctx.lineTo).call(
-        ctx,
-        x + radius*Math.cos(angle),
-        y + radius*Math.sin(angle)
-      );
-    }
-    ctx.closePath();
   }
   
   var LoadCanvas = Overload.function();
