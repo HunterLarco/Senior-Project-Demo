@@ -19,10 +19,21 @@ canvas{
   top:0px;
   left:0px;
   
-  left:50%;
-  top:50%;
+  width:100%;
+  height:100%;
   
-  -webkit-transform:translate(-50%, -50%);
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+  display: -moz-box;
+  -moz-box-orient: horizontal;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  display: box;
+  box-orient: horizontal;
+  box-pack: center;
+  box-align: center;
 }
 .maintext h2{
   text-transform:uppercase;
@@ -104,8 +115,10 @@ canvas{
 <canvas class='background'></canvas>
 
 <div class='maintext'>
-  <h2>Exploring the</h2>
-  <h1>Perceptron</h1>
+  <div>
+    <h2>Exploring the</h2>
+    <h1>Perceptron</h1>
+  </div>
 </div>
 
 <div class='tapanywhere'>Tap Anywhere to Begin</div>
