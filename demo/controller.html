@@ -89,7 +89,7 @@ canvas{
 <html>
 <head>
 
-<title>Perceptron Demo</title>
+<title>Perceptron Demo &middot; Controller</title>
 
 <meta charset="utf-8" />
 
@@ -153,6 +153,10 @@ canvas{
 			dir: 0
 		});
 	});
+	GenBoids.overload(function(x, y, num){
+		for(var i=0; i<num; i++)
+      this(x, y);
+	});
   
 	function MoveBoid(point){
 		// adapted from https://www.khanacademy.org/computer-programming/boid-seek-arrive-wander-behaviors/5939360759808000
@@ -184,8 +188,7 @@ canvas{
   
   function RenderBackground(canvases, contexts, width, height){
     if(boids.length == 0)
-      for(var i=0; i<8; i++)
-        GenBoids(0, height/2);
+      GenBoids(0, height/2, 20);
     
     var ctx = contexts[0];
     
