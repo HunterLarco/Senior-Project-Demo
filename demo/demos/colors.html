@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<style>
+
+body{
+  font-family:arial;
+}
+
+.meta{
+  position:fixed;
+  
+  top:0px;
+  left:0px;
+  right:0px;
+  bottom:0px;
+  
+  font-size:13px;
+  line-height:18px;
+  
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+  display: -moz-box;
+  -moz-box-orient: horizontal;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  display: box;
+  box-orient: horizontal;
+  box-pack: center;
+  box-align: center;
+}
+.meta .text{
+  width:300px;
+  margin:0px auto;
+  
+  color:rgb(51,51,51);
+}
+.meta .text h1{
+  margin:0px;
+  padding:0px 0px 12px 0px;
+  
+  font-size:26px;
+  font-weight:700;
+  
+  color:rgb(0,0,0);
+}
+.meta .continue{
+  margin:12px 0px 0px 0px;
+  padding:8px 12px;
+  
+  font-size:16px;
+  line-height:normal;
+  
+  text-align:center;
+  text-transform:uppercase;
+  
+  color:rgb(255,255,255);
+  background:#3CC0E7;
+  
+  cursor:pointer;
+  
+  -webkit-border-radius:3px;
+  -moz-border-radius:   3px;
+  border-radius:        3px;
+}
+
+.colors{
+  position:fixed;
+  
+  top:0px;
+  left:0px;
+  
+  box-sizing:border-box;
+  height:100%;
+  width:100%;
+  
+  padding:18px;
+  
+  font-size:0px;
+  line-height:0px;
+}
+.colors color{
+  display:inline-block;
+  position:relative;
+  
+  width:20%;
+  height:20%;
+  
+  overflow:hidden;
+  
+  cursor:pointer;
+}
+.colors color:after{
+  content:'';
+  display:block;
+  
+  -webkit-border-radius:3px;
+  -moz-border-radius:   3px;
+  border-radius:        3px;
+  
+  margin:8px;
+  
+  position:absolute;
+  top:0px;
+  left:0px;
+  right:0px;
+  bottom:0px;
+  
+  box-shadow:0px 0px 0px 100px rgb(255,255,255);
+}
+.colors .footer{
+  position:fixed;
+  
+  bottom:0px;
+  left:0px;
+  right:0px;
+  
+  padding:25px 50px;
+  
+  text-align:right;
+  
+  cursor:default;
+}
+.colors .footer.ready{
+  cursor:pointer;
+}
+.colors .footer .continue{
+  display:inline-block;
+  
+  padding:8px 12px;
+  
+  -webkit-border-radius:3px;
+  -moz-border-radius:   3px;
+  border-radius:        3px;
+  
+  background:rgb(255,255,255);
+  color:rgb(21,21,21);
+  
+  font-weight:700;
+  font-size:13px;
+  line-height:normal;
+  text-transform:uppercase;
+}
+
+.gone{
+  display:none !important;
+}
+.hidden{
+  opacity:0;
+  -webkit-transition:opacity 300ms;
+}
+.show{
+  opacity:1;
+  -webkit-transition:opacity 300ms 400ms;
+}
+
+.decomposer{
+  position:fixed;
+  
+  top:0px;
+  left:0px;
+  right:0px;
+  bottom:0px;
+  
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+  display: -moz-box;
+  -moz-box-orient: horizontal;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  display: box;
+  box-orient: horizontal;
+  box-pack: center;
+  box-align: center;
+}
+.decomposer .color{
+  width:300px;
+  height:300px;
+  
+  font-size:0px;
+  line-height:0px;
+}
+.decomposer .color part{
+  display:inline-block;
+  
+  width:10%;
+  height:10%;
+  
+  -webkit-transition:all 300ms;
+}
+.decomposer .color.decompose part{
+  box-shadow:inset 0px 0px 0px 4px rgb(255,255,255);
+}
+.decomposer label{
+  display:block;
+  
+  padding:6px 0px;
+  font-size:12px;
+  
+  text-transform:uppercase;
+  
+  text-align:center;
+}
+
+.numbers{
+  position:fixed;
+  
+  top:0px;
+  left:0px;
+  right:0px;
+  bottom:0px;
+  
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+  display: -moz-box;
+  -moz-box-orient: horizontal;
+  -moz-box-pack: center;
+  -moz-box-align: center;
+  display: box;
+  box-orient: horizontal;
+  box-pack: center;
+  box-align: center;
+}
+.numbers number{
+  display:inline-block;
+  
+  padding:20px 40px;
+  margin:0px 10px;
+  
+  font-size:60px;
+  font-weight:700;
+  
+  width:150px;
+  text-align:center;
+  
+  -webkit-border-radius:8px;
+  -moz-border-radius:   8px;
+  border-radius:        8px;
+}
+.numbers number.red{
+  background:rgb(255,0,0);
+}
+.numbers number.green{
+  background:rgb(0,255,0);
+}
+.numbers number.blue{
+  background:rgb(0,0,255);
+}
+.numbers .text{
+  text-align:center;
+  
+  margin:20px 0px;
+  font-size:13px;
+  
+  text-transform:uppercase;
+}
+
+</style>
+<html>
+<head>
+
+<title>Colors Demo</title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/classie.js'></script>
+<script src='/resources/scripts/requestAnimFrame.js'></script>
+<script src='/resources/scripts/overload.min.js'></script>
+
+</head>
+<body>
+
+
+<div class='meta show'>
+  <div class='text'><h1>The Data Problem</h1>All data can be represented by numbers and in all numbers there are patterns. Machine Learning is the process of turning data into numbers and then finding a pattern in the data. Because of this approach, all learning first begins with converting abstract ideas into numberical data. You can explore how colors are numbers in this demo.<div class='continue'>Begin The Demo</div></div>
+</div>
+
+<div class='colors gone hidden'>
+  <color style='background:#1abc9c;'></color>
+  <color style='background:#2ecc71;'></color>
+  <color style='background:#3498db;'></color>
+  <color style='background:#9b59b6;'></color>
+  <color style='background:#34495e;'></color>
+  <color style='background:#16a085;'></color>
+  <color style='background:#27ae60;'></color>
+  <color style='background:#2980b9;'></color>
+  <color style='background:#8e44ad;'></color>
+  <color style='background:#2c3e50;'></color>
+  <color style='background:#f1c40f;'></color>
+  <color style='background:#e67e22;'></color>
+  <color style='background:#e74c3c;'></color>
+  <color style='background:#ecf0f1;'></color>
+  <color style='background:#95a5a6;'></color>
+  <color style='background:#f39c12;'></color>
+  <color style='background:#d35400;'></color>
+  <color style='background:#c0392b;'></color>
+  <color style='background:#bdc3c7;'></color>
+  <color style='background:#7f8c8d;'></color>
+  <div class='footer'>
+    <div class='continue'>Select A Color</div>
+  </div>
+</div>
+
+<div class='decomposer gone hidden'>
+  <div>
+    <div class='color'></div>
+    <label>Click to Decompose</label>
+  </div>
+</div>
+
+<div class='numbers gone hidden'>
+  <div>
+    <number class='red'></number>
+    <number class='green'></number>
+    <number class='blue'></number>
+    <div class='text'>Tap Anywhere To Restart</div>
+  </div>
+</div>
+
+
+<script type='text/javascript'>
+(function(){
+  
+  var selectedcolor, pr, pg, pb;
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    InitColorPicker();
+    InitDecomposer();
+    InitNumbers();
+    document.querySelector('.meta .continue').addEventListener('click', ShowColorPicker);
+  }
+  
+  function ShowIntro(){
+    TransitionTo('.meta');
+  }
+  
+  function ShowColorPicker(){
+    ResetColorPicker();
+    TransitionTo('.colors');
+  }
+  function ResetColorPicker(){
+    var footer = document.querySelector('.colors .footer');
+    classie.remove(footer, 'ready');
+    footer.removeEventListener('click', ShowDecomposer);
+    footer.style.background = '#fff';
+    document.querySelector('.colors .footer .continue').innerHTML = 'Select A Color';
+  }
+  function InitColorPicker(){
+    var colors = document.querySelectorAll('.colors color');
+    
+    for(var i=0,elem; elem=colors[i++];)
+      (function(elem){
+        elem.addEventListener('click', function(event){
+          SelectColor(elem.getAttribute('style').replace(/^background:#([^;]+);$/, '$1'));
+        });
+      })(elem);
+  }
+  function SelectColor(color){
+    selectedcolor = color;
+    UpdateDecomposer();
+    var footer = document.querySelector('.colors .footer');
+    footer.style.background = '#'+color;
+    classie.add(footer, 'ready');
+    footer.removeEventListener('click', ShowDecomposer);
+    footer.addEventListener('click', ShowDecomposer);
+    document.querySelector('.colors .footer .continue').innerHTML = 'Continue';
+  }
+  
+  function ShowDecomposer(){
+    ResetDecomposer();
+    TransitionTo('.decomposer');
+  }
+  function UpdateDecomposer(){
+    var parts = document.querySelectorAll('.decomposer .color part');
+    for(var i=0,elem; elem=parts[i++];)
+      (function(elem){
+        elem.style.background = '#'+selectedcolor;
+      })(elem);
+  }
+  function ResetDecomposer(){
+    document.querySelector('.decomposer .color').addEventListener('click', DecomposeColor);
+    document.querySelector('.decomposer label').innerHTML = 'Click To Decompose';
+    classie.remove(document.querySelector('.decomposer .color'), 'decompose');
+    document.querySelector('.decomposer').removeEventListener('click', ShowNumbers);
+  }
+  function InitDecomposer(){
+    for(var i=0; i<100; i++){
+      var part = document.createElement('part');
+      document.querySelector('.decomposer .color').appendChild(part);
+    }
+  }
+  function DecomposeColor(){
+    document.querySelector('.decomposer .color').removeEventListener('click', DecomposeColor);
+    classie.add(document.querySelector('.decomposer .color'), 'decompose');
+    document.querySelector('.decomposer label').innerHTML = 'Decomposing...';
+    
+    setTimeout(function(){
+      var color = selectedcolor;
+      
+      var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+      var rgb = {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+      };
+      
+      var total = rgb.r+rgb.g+rgb.b;
+      pr = rgb.r / total;
+      pg = rgb.g / total;
+      pb = rgb.b / total;
+      
+      var parts = document.querySelectorAll('.decomposer .color part');
+      for(var i=0,elem; elem=parts[i++];)
+        (function(elem, i, percent){
+          var color = percent < pr ? '#f00' : (percent < pr+pg ? '#0f0' : '#00f');
+          setTimeout(function(){
+            elem.style.background = color;
+          }, i*50);
+        })(elem, i, i/parts.length);
+      
+      setTimeout(function(){
+        document.querySelector('.decomposer label').innerHTML = 'Tap Anywhere To Continue';
+        document.querySelector('.decomposer').addEventListener('click', ShowNumbers);
+      }, parts.length*50+200);
+    }, 600);
+  }
+  
+  function ShowNumbers(){
+    document.querySelector('.numbers .red').innerHTML   = Math.round(pr*100)+'%';
+    document.querySelector('.numbers .green').innerHTML = Math.round(pg*100)+'%';
+    document.querySelector('.numbers .blue').innerHTML  = Math.round(pb*100)+'%';
+    
+    TransitionTo('.numbers');
+  }
+  function InitNumbers(){
+    document.querySelector('.numbers').addEventListener('click', ShowIntro);
+  }
+  
+  function TransitionTo(selector){
+    var shown = document.querySelector('.show');
+    classie.remove(shown, 'show');
+    classie.add(shown, 'hidden');
+    
+    var hidden = document.querySelector(selector);
+    classie.remove(hidden, 'gone');
+    
+    setTimeout(function(){
+      classie.remove(hidden, 'hidden');
+      classie.add(hidden, 'show');
+    }, 0);
+    setTimeout(function(){
+      classie.add(shown, 'gone');
+    }, 350);
+  }
+  
+})();
+</script>
+</body>
+</html>

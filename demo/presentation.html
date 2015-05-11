@@ -36,23 +36,49 @@ h1{
               0px 4px 0px rgb(0,110,159),
               0px 5px 0px rgb(0,110,159);
 }
-h2{
+
+
+.sidebar{
   position:fixed;
   
   top:0px;
   right:0px;
   
-  margin:0px;
+  height:100%;
+  width:300px;
+  
+  background:rgb(21,21,21);
+  
+  overflow:hidden;
+  overflow-y:scroll;
+  
   padding:50px;
+}
+.sidebar h2{
+  margin:0px;
+  padding:0px;
   
   font-weight:300;
   font-size:40px;
   font-family:'Slim Joe';
   line-height:40px;
   
+  text-shadow:2px 2px 0px rgba(255,255,255,0.25);
+  
   color:rgb(255,255,255);
   
   text-transform:uppercase;
+}
+.sidebar p{
+  margin:0px;
+  padding:10px 0px;
+  
+  font-size:20px;
+  font-weight:100;
+  color:rgba(255,255,255,0.75);
+  font-family:'lato';
+  
+  line-height:26px;
 }
 
 </style>
@@ -78,8 +104,17 @@ h2{
 <body>
 
 
-<h1>The Data Problem</h1>
-<h2>Part N.1</h2>
+<div class='content'>
+  <h1>The Data Problem</h1>
+</div>
+
+
+<div class='sidebar'>
+  <h2>Part N.1</h2>
+  <p>All data can be represented with numbers. From how many cats your own to your very social interactions, numbers can detail your life with the right system.</p>
+  <p>Take for example a color. How could a color possibly be represented by numbers? Colors can be represented by three numbers which determine mixing ratios for the primary colors; essentially allowing each color to be "mixed" by numbers.</p>
+  <p>In any set of numbers there are patterns. But how do we find these patterns?</p>
+</div>
 
 
 <script type='text/javascript'>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<style></style>
+<html>
+<head>
+
+<title>Perceptron Demo &middot; Player</title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/Piano.js'></script>
+<script src='/resources/scripts/PianoPlayer.js'></script>
+<script src='/resources/scripts/MIDIFile.js'></script>
+
+<script src='/resources/scripts/recorder.js'></script>
+
+</head>
+<body>
+
+Piano Player
+
+<script type='text/javascript'>
+(function(){
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    var player = new PianoPlayer(AcousticPiano);
+    player.onload = function(){
+      console.log(player.play('C3', 2.5));
+      console.log(player.play('E3', 2.5));
+      console.log(player.play('G3', 2.5));
+    }
+    
+    return;
+    
+    var request = new XMLHttpRequest();
+    request.open('GET', '/resources/mozart/mz_311_1.mid', true);
+    request.responseType = 'arraybuffer';
+    request.onload = function() {
+      var midi_buffer = request.response,
+          midifile = new MIDIFile(midi_buffer);
+      console.log(midifile);
+      window.file = midifile;
+    }
+    request.send();
+  }
+  
+})();
+</script>
+</body>
+</html>

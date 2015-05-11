@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<style></style>
+<html>
+<head>
+
+<title>Perceptron Demo &middot; Speech Jammer</title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/Piano.js'></script>
+<script src='/resources/scripts/PianoPlayer.js'></script>
+<script src='/resources/scripts/MIDIFile.js'></script>
+
+<script src='/resources/scripts/recorder.js'></script>
+
+</head>
+<body>
+
+Speech Jammer
+
+<script type='text/javascript'>
+(function(){
+  
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  var audioContext = new AudioContext();
+  var inputPoint, realAudioInput, audioInput, analyserNode, audioRecorder, zeroGain;
+  
+  function gotStream(stream){
+      inputPoint = audioContext.createGain();
+
+      // Create an AudioNode from the stream.
+      realAudioInput = audioContext.createMediaStreamSource(stream);
+      audioInput = realAudioInput;
+      audioInput.connect(inputPoint);
+
+      audioRecorder = new Recorder( inputPoint );
+
+      zeroGain = audioContext.createGain();
+      zeroGain.gain.value = 3;
+      inputPoint.connect( zeroGain );
+
+      var delay = audioContext.createDelay();
+      delay.delayTime.value = 0.075;
+      zeroGain.connect(delay);
+      
+      delay.connect( audioContext.destination );
+  }
+  
+  function initAudio() {
+    if (!navigator.getUserMedia)
+      navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+    navigator.getUserMedia(
+      {
+        "audio": {
+          "mandatory": {
+            "googEchoCancellation": "false",
+            "googAutoGainControl": "false",
+            "googNoiseSuppression": "false",
+            "googHighpassFilter": "false"
+          },
+          "optional": []
+        },
+      }, gotStream, function(e) {
+        alert('Error getting audio');
+        console.log(e);
+      });
+    }
+
+    window.addEventListener('load', initAudio );
+  
+})();
+</script>
+</body>
+</html>

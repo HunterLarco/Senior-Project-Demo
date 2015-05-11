@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<style>
+
+canvas{
+  position:fixed;
+  
+  top:0px;
+  right:0px;
+  
+  width:100vh;
+  height:100vh;
+}
+
+.sidebar{
+  height:100vh;
+  margin-right: 100vh;
+  
+  background:rgb(21,31,41);
+}
+
+</style>
+<html>
+<head>
+
+<title></title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/game/overload.min.js'></script>
+<script src='/resources/scripts/game/brain.js'></script>
+
+</head>
+<body>
+
+
+<div class='sidebar'></div>
+<canvas></canvas>
+
+
+<script type='text/javascript'>
+(function(){
+  
+  var world;
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    world = new World();
+    new NeuralNetPlayer(world);
+    new NeuralNetPlayer(world);
+
+    window.players = world.getPlayers();
+    
+    var canvas = document.querySelector('canvas');
+    LoadCanvas(canvas, RenderGame).start();
+  }
+  
+  // change viewport to check bullets
+  
+  function RenderGame(canvases, contexts, width, height){
+    var canvas = canvases[0],
+        ctx = contexts[0];
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    world.render(ctx, width, height);
+  }
+  
+  function World(){
+    var self = this;
+    
+    var players = [],
+        bullets = [];
+    
+    self.render = Render;
+    
+    self.getPlayers = GetPlayers;
+    self.addPlayer = AddPlayer;
+    
+    self.getBullets = GetBullets;
+    self.addBullet = AddBullet;
+    self.removeBullet = RemoveBullet;
+    
+    function Render(ctx, width, height){
+      for(var i=players.length,player; player=players[--i];){
+        player.act();
+        player.render(ctx, width, height);
+      }
+      for(var i=bullets.length,bullet; bullet=bullets[--i];){
+        bullet.act();
+        bullet.render(ctx, width, height);
+      }
+    }
+    
+    function GetPlayers(){
+      return players;
+    }
+    function AddPlayer(){
+      var args = [self].concat(Array.prototype.slice.call(arguments)),
+          player = Construct(Player, args);
+      players.push(player);
+      return player;
+    }
+    
+    function Construct(cls, args){
+      function F(){
+        return cls.apply(this, args);
+      }
+      F.prototype = cls.prototype;
+      return new F();
+    }
+    
+    function GetBullets(){
+      return bullets;
+    }
+    function AddBullet(){
+      var args = [self].concat(Array.prototype.slice.call(arguments)),
+          bullet = Construct(Bullet, args);
+      bullets.push(bullet);
+      return bullet;
+    }
+    function RemoveBullet(bullet){
+      var index = bullets.indexOf(bullet);
+      if(index == -1) return;
+      bullets.splice(index, 1);
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(){});
+    constructor.apply(self, arguments);
+  }
+  
+  // EVENTS: onact
+  function Player(){
+    var self = this;
+    
+    self.WALLS = true;
+    self.MAX_VELOCITY = 0.1;// 10% of canvas diagonal per second per second
+    self.MAX_ANGULAR_VELOCITY = 3;// 3 rad per second per second
+    
+    self.VIEW_ANGLE = Math.PI/6;// on each side
+    
+    self.onact = new Function();
+    
+    const PLAYER_RADIUS = 20;
+    var PLAYER_ADAPTED_RADIUS;
+    const VIEW_RENDER_RADIUS = 250;
+    
+    var world;
+    
+    var x, y, angle = 0, velocity = 0, angular_velocity = 0;
+    var lastact = Date.now();
+    var health = 1;
+    
+    var moving = false;
+    // 0, -1, 1
+    var turning = 0;
+    
+    const diagonal = Math.sqrt(2);
+    
+    self.getView = GetView;
+    
+    self.act = Act;
+    self.render = Render;
+    
+    self.move = MoveCommand;
+    self.stop = StopCommand;
+    
+    self.turnleft = TurnLeft;
+    self.turnright = TurnRight;
+    self.stopturn = StopTurning;
+    
+    self.getAngle = GetAngle;
+    self.getVelocity = GetVelocity;
+    
+    self.getX = GetX;
+    self.getY = GetY;
+    
+    self.fire = Fire;
+    self.willHit = WillHit;
+    self.hit = Hit;
+    self.getHealth = GetHealth;
+    
+    self.getWorld = GetWorld;
+    
+    function GetView(){
+      function IsInRange(obj, index, arr){
+        if(obj == self) return false;
+        var objangle = Math.atan2(obj.getY()-y, obj.getX()-x),
+            rawdiff = Math.abs(angle - objangle),
+            diff = Math.min(rawdiff, Math.PI*2-rawdiff);
+        return diff < self.VIEW_ANGLE;
+      }
+      return {
+        'players': world.getPlayers().filter(IsInRange),
+        'bullets': world.getBullets().filter(IsInRange)
+      };
+    }
+    
+    function MoveCommand(){
+      moving = true;
+    }
+    function StopCommand(){
+      moving = false;
+    }
+    function TurnLeft(){
+      turning = -1;
+    }
+    function TurnRight(){
+      turning = 1;
+    }
+    function StopTurning(){
+      turning = 0;
+    }
+    
+    function Render(ctx, width, height){
+      PLAYER_ADAPTED_RADIUS = PLAYER_RADIUS / Math.max(width, height);
+      
+      ctx.fillStyle = 'rgb(21,31,41)';
+      
+      ctx.beginPath();
+      ctx.moveTo(x*width, y*height);
+      ctx.arc(x*width, y*height, PLAYER_RADIUS, angle-Math.PI/8+Math.PI, angle+Math.PI/8+Math.PI, false);
+      ctx.fill();
+      
+      var gradient = ctx.createRadialGradient(
+        x*width, y*height, 0,
+        x*width, y*height, VIEW_RENDER_RADIUS
+      );
+      gradient.addColorStop(0, 'rgba(200,0,0,0.2)');
+      gradient.addColorStop(1, 'rgba(200,0,0,0)');
+      ctx.fillStyle = gradient;
+      
+      ctx.beginPath();
+      ctx.moveTo(x*width, y*height);
+      ctx.arc(x*width, y*height, VIEW_RENDER_RADIUS, angle-self.VIEW_ANGLE, angle+self.VIEW_ANGLE, false);
+      ctx.fill();
+      
+      ctx.strokeStyle = 'rgb(200,200,200)';
+      ctx.lineWidth = 4;
+      
+      ctx.beginPath()
+      ctx.moveTo(x*width-15+30*health, y*height-PLAYER_RADIUS-5);
+      ctx.lineTo(x*width+15, y*height-PLAYER_RADIUS-5);
+      ctx.stroke();
+      
+      ctx.strokeStyle = 'rgb(0,0,255)';
+      
+      ctx.beginPath()
+      ctx.moveTo(x*width-15, y*height-PLAYER_RADIUS-5);
+      ctx.lineTo(x*width-15+30*health, y*height-PLAYER_RADIUS-5);
+      ctx.stroke();
+      
+      ctx.lineWidth = 1;
+    }
+    
+    function Act(){
+      var now = Date.now(), difftime = now - lastact;
+      lastact = now;
+      
+      self.onact(self, difftime);
+      
+      Move(difftime);
+      Turn(difftime);
+      
+      if(x > 1) x = 0; else if(x < 0) x = 1;
+      if(y > 1) y = 0; else if(y < 0) y = 1;
+    }
+    function Turn(difftime){
+      angular_velocity = turning == 0 ? 0 : (turning * self.MAX_ANGULAR_VELOCITY);
+      angle += angular_velocity*difftime/1000;
+      angle -= Math.PI*2 * Math.floor(angle / (Math.PI*2));
+    }
+    function Move(difftime){
+      velocity = moving ? self.MAX_VELOCITY : 0;
+      x += Math.cos(angle)*velocity*diagonal*difftime/1000;
+      y += Math.sin(angle)*velocity*diagonal*difftime/1000;
+    }
+    
+    function GetAngle(){
+      return angle;
+    }
+    function GetVelocity(){
+      return velocity;
+    }
+    function GetAngularVelocity(){
+      return angular_velocity;
+    }
+    function GetX(){
+      return x;
+    }
+    function GetY(){
+      return y;
+    }
+    
+    function Fire(bullets){
+      return world.addBullet(x, y, angle, velocity, self);
+    }
+    function WillHit(bullet, nx, ny){
+      var dist = Math.sqrt(Math.pow(x-bullet.getX(), 2)+Math.pow(y-bullet.getY(), 2));
+      if (dist < PLAYER_ADAPTED_RADIUS) return true;
+      
+      if(bullet.getX() == nx && bullet.getY() == ny) return false;
+
+      var point_to_line = Math.abs((ny-bullet.getY())*x-(nx-bullet.getX())*y+nx*bullet.getY()-ny*bullet.getX())/
+                          Math.sqrt(Math.pow(ny-bullet.getY(),2)+Math.pow(nx-bullet.getX(),2));
+      if(point_to_line < PLAYER_ADAPTED_RADIUS) return true;
+      
+      return false;
+    }
+    function Hit(bullet, nx, ny){
+      if(!WillHit(bullet, nx, ny)) return false;
+      
+      world.removeBullet(bullet);
+      health = Math.max(0, health-bullet.BULLET_DAMAGE);
+      return true;
+    }
+    function GetHealth(){
+      return health;
+    }
+    
+    function GetWorld(){
+      return world;
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(){
+      this(new World());
+    });
+    constructor.overload(function(_world){
+      this(_world, 0, 0);
+    }, ['object']);
+    constructor.overload(function(_world, xpos, ypos){
+      this(_world, xpos, ypos, 1, 1);
+    }, ['object', 'number', 'number']);
+    constructor.overload(function(_world, xpos, ypos, width, height){
+      world = _world;
+      x = xpos/width;
+      y = ypos/height;
+    }, ['object', 'number', 'number', 'number', 'number']);
+    constructor.apply(self, arguments);
+  }
+  
+  // EVENTS: onhit(bullet, bulletparent, hitplayer)
+  function Bullet(x, y, angle, velocity){
+    var self = this;
+    
+    self.MAX_VELOCITY = 0.2;// 20% of canvas diagonal per second per second
+    self.LENGTH = 15;
+    self.BULLET_DAMAGE = 0.2;
+    
+    self.onhit = new Function();
+    
+    const diagonal = Math.sqrt(2);
+    
+    var world;
+    
+    var lastact = Date.now();
+    var x, y, angle, velocity;
+    var parentplayer, hasleftparent = false;
+    
+    self.render = Render;
+    
+    self.act = Act;
+    self.move = Move;
+    
+    self.getAngle = GetAngle;
+    self.getVelocity = GetVelocity;
+    
+    self.getX = GetX;
+    self.getY = GetY;
+    
+    function Render(ctx, width, height){
+      ctx.strokeStyle = 'rgb(0,0,0)';
+      
+      ctx.beginPath();
+      ctx.moveTo(x*width, y*height);
+      ctx.lineTo(x*width+Math.cos(angle)*self.LENGTH, y*height+Math.sin(angle)*self.LENGTH);
+      ctx.stroke();
+    }
+    
+    function Act(){
+      var now = Date.now(), difftime = now - lastact;
+      lastact = now;
+      
+      Move(difftime);
+      
+      if(x > 1) x = 0; else if(x < 0) x = 1;
+      if(y > 1) y = 0; else if(y < 0) y = 1;
+    }
+    function Move(difftime){
+      var nx = x+Math.cos(angle)*velocity*diagonal*difftime/1000;
+      var ny = y+Math.sin(angle)*velocity*diagonal*difftime/1000;
+      
+      CheckHits(x, y, nx, ny);
+      
+      x = nx;
+      y = ny;
+    }
+    function CheckHits(x, y, nx, ny){
+      if(!parentplayer.willHit(self, nx, ny) && !hasleftparent) hasleftparent = true;
+      
+      var players = world.getPlayers();
+      
+      for(var i=0,player; player=players[i++];){
+        if(player == parentplayer && !hasleftparent) continue;
+        if(player.hit(self, nx, ny))
+          self.onhit(self, parentplayer, player);
+      }
+    }
+    
+    function GetAngle(){
+      return angle;
+    }
+    function GetVelocity(){
+      return velocity;
+    }
+    
+    function GetX(){
+      return x;
+    }
+    function GetY(){
+      return y;
+    }
+    
+    function GetWorld(){
+      return world;
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(_world, _x, _y, _angle, starting_velocity, _parent){
+      world = _world;
+      x = _x;
+      y = _y;
+      angle = _angle;
+      parentplayer = _parent;
+      velocity = self.MAX_VELOCITY + starting_velocity;
+    }, ['object', 'number', 'number', 'number', 'number', 'object']);
+    constructor.apply(self, arguments);
+  }
+  
+  function NeuralNetPlayer(){
+    var self = this;
+    
+    var trainingdata = [], network = new brain.NeuralNetwork();
+    var lastupdatelength = 0;
+    var hastrained = false;
+    
+    var actlog = [];
+    
+    var player;
+    
+    self.getActLog = GetActLog;
+    self.trainNegatives = TrainNegatives;
+    self.updateNetwork = UpdateNetwork;
+    
+    function Act(){
+      if(hastrained) return ActWithNetwork();
+      else return ActWithRandom();
+    }
+    function ActWithRandom(){
+      var action = {
+        'move': Math.random() < 0.5,
+        'stop': Math.random() < 0.5,
+        'turnleft': Math.random() < 0.5,
+        'turnright': Math.random() < 0.5,
+        'stopturn': Math.random() < 0.5,
+        'fire': Math.random() < 0.05
+      };
+      
+      Log({
+        action: SetupActionObject(action),
+        view: SetupViewObject(player.getView())
+      });
+      
+      RunAction(action);
+    }
+    function ActWithNetwork(){
+      var view = SetupViewObject(player.getView());
+      var response = network.run(view);
+      
+      var action = {
+        'move':      response[0] > 0,
+        'stop':      response[1] > 0,
+        'turnleft':  response[2] > 0,
+        'turnright': response[3] > 0,
+        'stopturn':  response[4] > 0,
+        'fire':      response[5] > 0
+      };
+      
+      Log({
+        action: SetupActionObject(action),
+        view: SetupViewObject(player.getView())
+      });
+      
+      RunAction(action);
+    }
+    function RunAction(action){
+      if(action.move) player.move();
+      if(action.stop) player.stop();
+      if(action.turnleft) player.turnleft();
+      if(action.turnright) player.turnright();
+      if(action.stopturn) player.stopturn();
+      if(action.fire) Fire();
+    }
+    
+    function SetupActionObject(action){
+      return [
+        action.move      ? 1 : -1,
+        action.stop      ? 1 : -1,
+        action.turnleft  ? 1 : -1,
+        action.turnright ? 1 : -1,
+        action.stopturn  ? 1 : -1,
+        action.fire      ? 1 : -1
+      ];
+    }
+    function SetupViewObject(view){
+      var player_data = [[-1, -1, 0, 0]];
+      
+      for(var i=0,player; player=view.players[i++];){
+        player_data.push([
+          player.getX(),
+          player.getY(),
+          player.getAngle(),
+          player.getVelocity()
+        ]);
+      }
+      
+      return player_data.unshift();
+    }
+    
+    function Fire(){
+      var log = GetActLog();
+      
+      player.fire().onhit = function OnHit(bullet, firer, hitplayer){
+        if(firer == hitplayer)
+          for(var i=0,action; action=log[i++];)
+            action.action[5] = 0;
+        
+        hitplayer.nplayer.trainNegatives();
+        
+        for(var i=0,action; action=log[i++];)
+          trainingdata.push({
+            input: action.view,
+            output: action.action
+          });
+        
+        UpdateNetwork();
+      }
+    }
+    function TrainNegatives(){
+      var log = GetActLog();
+      
+      for(var i=0,action; action=log[i++];)
+        trainingdata.push({
+          input: action.view,
+          output: [1, 0, 1, 1, 0, 0]
+        });
+      
+      UpdateNetwork();
+    }
+    
+    function Log(action){
+      action.time = Date.now();
+      actlog.push(action);
+      CleanActLog();
+    }
+    function CleanActLog(){
+      var now = Date.now();
+      
+      while(now - actlog[0].time > 1000)
+        actlog.shift();
+    }
+    function GetActLog(){
+      CleanActLog();
+      return actlog;
+    }
+    
+    // updates every 500 data points
+    function UpdateNetwork(){
+      if(trainingdata.length == 0) return;
+      
+      if(trainingdata.length - lastupdatelength < 500){
+        console.log('Waiting for more data...');
+        return;
+      };
+      lastupdatelength = trainingdata.length;
+      
+      if(!!window.Worker){
+        var worker = new Worker('/resources/scripts/game/trainingworker.js');
+        worker.onmessage = OnWorkerMessage;
+        worker.onerror = OnWorkerError;
+        worker.postMessage(JSON.stringify(trainingdata));
+      }else{
+        network.train(trainingdata, {
+          iterations: 9000
+        });
+        hastrained = true;
+        console.log(network);
+      }
+    }
+    function OnWorkerMessage(event){
+      var data = JSON.parse(event.data);
+      if(data.type == 'result'){
+        network = new brain.NeuralNetwork().fromJSON(data.net);
+        console.log(network);
+        hastrained = true;
+      }
+    }
+    function OnWorkerError(){
+      alert('Error Training Network');
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(world){
+      player = world.addPlayer(Math.random(), Math.random());
+      player.onact = Act;
+      player.nplayer = self;
+    }, ['object']);
+    constructor.apply(self, arguments);
+  }
+  
+  var LoadCanvas = Overload.function();
+  LoadCanvas.overload(function(canvas, Renderer){
+    return this([canvas], Renderer);
+  }, ['object', 'function']);
+  LoadCanvas.overload(function(canvases, Renderer){
+    var contexts = [], width, height;
+    var stopRender = false, isRunning = false;
+    
+    (function Load(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        contexts.push(canvas.getContext('2d'));
+      
+      ResizeCanvases();
+      window.addEventListener('resize', ResizeCanvases);
+    })();
+    
+    function ResizeCanvases(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        ResizeCanvas(canvas);
+    }
+    function ResizeCanvas(canvas){
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    }
+    
+    function Render(){
+      Renderer(canvases, contexts, width, height);
+    }
+    function Stop(){
+      stopRender = true;
+    }
+    function Start(){
+      if(isRunning) return;
+      stopRender = false;
+      
+      (function Run(){
+        if(stopRender) return;
+        
+        requestAnimationFrame(Run);
+        Renderer(canvases, contexts, width, height);
+      })();
+    }
+    
+    return {
+      'stop': Stop,
+      'start': Start,
+      'render': Render
+    };
+  }, ['array', 'function']);
+  
+})();
+</script>
+</body>
+</html>
