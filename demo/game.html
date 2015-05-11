@@ -54,7 +54,7 @@ canvas{
   function Init(){
     world = new World();
     new NeuralNetPlayer(world);
-    new NeuralNetPlayer(world);
+    new Walker(world);
 
     window.players = world.getPlayers();
     
@@ -142,8 +142,8 @@ canvas{
     var self = this;
     
     self.WALLS = true;
-    self.MAX_VELOCITY = 0.1;// 10% of canvas diagonal per second per second
-    self.MAX_ANGULAR_VELOCITY = 3;// 3 rad per second per second
+    self.MAX_VELOCITY = 0.0025;// 10% of canvas diagonal per second per second
+    self.MAX_ANGULAR_VELOCITY = 0.07;// 3 rad per second per second
     
     self.VIEW_ANGLE = Math.PI/6;// on each side
     
@@ -156,7 +156,6 @@ canvas{
     var world;
     
     var x, y, angle = 0, velocity = 0, angular_velocity = 0;
-    var lastact = Date.now();
     var health = 1;
     
     var moving = false;
@@ -262,26 +261,23 @@ canvas{
     }
     
     function Act(){
-      var now = Date.now(), difftime = now - lastact;
-      lastact = now;
+      self.onact(self);
       
-      self.onact(self, difftime);
-      
-      Move(difftime);
-      Turn(difftime);
+      Move();
+      Turn();
       
       if(x > 1) x = 0; else if(x < 0) x = 1;
       if(y > 1) y = 0; else if(y < 0) y = 1;
     }
-    function Turn(difftime){
+    function Turn(){
       angular_velocity = turning == 0 ? 0 : (turning * self.MAX_ANGULAR_VELOCITY);
-      angle += angular_velocity*difftime/1000;
+      angle += angular_velocity;
       angle -= Math.PI*2 * Math.floor(angle / (Math.PI*2));
     }
-    function Move(difftime){
+    function Move(){
       velocity = moving ? self.MAX_VELOCITY : 0;
-      x += Math.cos(angle)*velocity*diagonal*difftime/1000;
-      y += Math.sin(angle)*velocity*diagonal*difftime/1000;
+      x += Math.cos(angle)*velocity*diagonal;
+      y += Math.sin(angle)*velocity*diagonal;
     }
     
     function GetAngle(){
@@ -352,9 +348,10 @@ canvas{
   function Bullet(x, y, angle, velocity){
     var self = this;
     
-    self.MAX_VELOCITY = 0.2;// 20% of canvas diagonal per second per second
+    self.MAX_VELOCITY = 0.005;// 20% of canvas diagonal per second per second
     self.LENGTH = 15;
-    self.BULLET_DAMAGE = 0.2;
+    self.BULLET_DAMAGE = 0.01;
+    self.MAX_AGE = 1500;
     
     self.onhit = new Function();
     
@@ -362,7 +359,8 @@ canvas{
     
     var world;
     
-    var lastact = Date.now();
+    var creationtime = Date.now();
+    
     var x, y, angle, velocity;
     var parentplayer, hasleftparent = false;
     
@@ -387,31 +385,26 @@ canvas{
     }
     
     function Act(){
-      var now = Date.now(), difftime = now - lastact;
-      lastact = now;
+      Move();
+      CheckHits();
       
-      Move(difftime);
+      if(Date.now() - creationtime > self.MAX_AGE) world.removeBullet(self);
       
       if(x > 1) x = 0; else if(x < 0) x = 1;
       if(y > 1) y = 0; else if(y < 0) y = 1;
     }
-    function Move(difftime){
-      var nx = x+Math.cos(angle)*velocity*diagonal*difftime/1000;
-      var ny = y+Math.sin(angle)*velocity*diagonal*difftime/1000;
-      
-      CheckHits(x, y, nx, ny);
-      
-      x = nx;
-      y = ny;
+    function Move(){
+      x += Math.cos(angle)*velocity*diagonal;
+      y += Math.sin(angle)*velocity*diagonal;
     }
-    function CheckHits(x, y, nx, ny){
-      if(!parentplayer.willHit(self, nx, ny) && !hasleftparent) hasleftparent = true;
+    function CheckHits(){
+      if(!parentplayer.willHit(self) && !hasleftparent) hasleftparent = true;
       
       var players = world.getPlayers();
       
       for(var i=0,player; player=players[i++];){
         if(player == parentplayer && !hasleftparent) continue;
-        if(player.hit(self, nx, ny))
+        if(player.hit(self))
           self.onhit(self, parentplayer, player);
       }
     }
@@ -449,9 +442,11 @@ canvas{
   function NeuralNetPlayer(){
     var self = this;
     
-    var trainingdata = [], network = new brain.NeuralNetwork();
+    var trainingdata = [], network = new brain.NeuralNetwork({hiddenLayers:[8,6]});
     var lastupdatelength = 0;
+    var istraining = false;
     var hastrained = false;
+    var trains = 0;
     
     var actlog = [];
     
@@ -462,7 +457,7 @@ canvas{
     self.updateNetwork = UpdateNetwork;
     
     function Act(){
-      if(hastrained) return ActWithNetwork();
+      if(hastrained && Math.random() > 0.1) return ActWithNetwork();
       else return ActWithRandom();
     }
     function ActWithRandom(){
@@ -475,16 +470,12 @@ canvas{
         'fire': Math.random() < 0.05
       };
       
-      Log({
-        action: SetupActionObject(action),
-        view: SetupViewObject(player.getView())
-      });
-      
       RunAction(action);
     }
     function ActWithNetwork(){
       var view = SetupViewObject(player.getView());
-      var response = network.run(view);
+      var loc = GetLoc();
+      var response = network.run(loc.concat(view));
       
       var action = {
         'move':      response[0] > 0,
@@ -495,11 +486,6 @@ canvas{
         'fire':      response[5] > 0
       };
       
-      Log({
-        action: SetupActionObject(action),
-        view: SetupViewObject(player.getView())
-      });
-      
       RunAction(action);
     }
     function RunAction(action){
@@ -509,7 +495,17 @@ canvas{
       if(action.turnright) player.turnright();
       if(action.stopturn) player.stopturn();
       if(action.fire) Fire();
+      
+      Log({
+        action: SetupActionObject(action),
+        view: SetupViewObject(player.getView()),
+        loc: GetLoc()
+      });
     }
+    
+    function GetLoc(){
+      return [player.getX(), player.getY(), player.getAngle(), player.getVelocity()];
+    }  
     
     function SetupActionObject(action){
       return [
@@ -544,11 +540,11 @@ canvas{
           for(var i=0,action; action=log[i++];)
             action.action[5] = 0;
         
-        hitplayer.nplayer.trainNegatives();
+        if(!!hitplayer.nplayer) hitplayer.nplayer.trainNegatives();
         
         for(var i=0,action; action=log[i++];)
           trainingdata.push({
-            input: action.view,
+            input: action.loc.concat(action.view),
             output: action.action
           });
         
@@ -560,7 +556,7 @@ canvas{
       
       for(var i=0,action; action=log[i++];)
         trainingdata.push({
-          input: action.view,
+          input: action.loc.concat(action.view),
           output: [1, 0, 1, 1, 0, 0]
         });
       
@@ -583,15 +579,15 @@ canvas{
       return actlog;
     }
     
-    // updates every 500 data points
+    // updates every 500 data points and waits for the last train to finish
     function UpdateNetwork(){
       if(trainingdata.length == 0) return;
       
-      if(trainingdata.length - lastupdatelength < 500){
-        console.log('Waiting for more data...');
-        return;
-      };
+      if(trainingdata.length - lastupdatelength < 500 || istraining) return;
       lastupdatelength = trainingdata.length;
+      istraining = true;
+      
+      console.log('Training... #'+(++trains));
       
       if(!!window.Worker){
         var worker = new Worker('/resources/scripts/game/trainingworker.js');
@@ -603,6 +599,7 @@ canvas{
           iterations: 9000
         });
         hastrained = true;
+        istraining = false;
         console.log(network);
       }
     }
@@ -612,6 +609,9 @@ canvas{
         network = new brain.NeuralNetwork().fromJSON(data.net);
         console.log(network);
         hastrained = true;
+        istraining = false;
+      }else if(data.type == 'progress'){
+        // console.log(data);
       }
     }
     function OnWorkerError(){
@@ -623,6 +623,27 @@ canvas{
       player = world.addPlayer(Math.random(), Math.random());
       player.onact = Act;
       player.nplayer = self;
+    }, ['object']);
+    constructor.apply(self, arguments);
+  }
+  
+  function Walker(){
+    var self = this;
+    
+    var player;
+    
+    function Act(){
+      if(Math.random() < 0.1) player.move();
+      if(Math.random() < 0.025) player.stop();
+      if(Math.random() < 0.1) player.turnleft();
+      if(Math.random() < 0.1) player.turnright();
+      if(Math.random() < 0.025) player.stopturn();
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(world){
+      player = world.addPlayer(Math.random(), Math.random());
+      player.onact = Act;
     }, ['object']);
     constructor.apply(self, arguments);
   }
