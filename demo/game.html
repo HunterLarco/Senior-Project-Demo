@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<style>
+
+canvas{
+  position:fixed;
+  
+  top:0px;
+  right:0px;
+  
+  width:100vh;
+  height:100vh;
+}
+
+.sidebar{
+  height:100vh;
+  margin-right: 100vh;
+  
+  background:rgb(21,31,41);
+}
+
+</style>
+<html>
+<head>
+
+<title></title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/game/overload.min.js'></script>
+<script src='/resources/scripts/game/brain.js'></script>
+
+</head>
+<body>
+
+
+<div class='sidebar'></div>
+<canvas></canvas>
+
+
+<script type='text/javascript'>
+(function(){
+  
+  var world, controller;
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    world = new World();
+    for(var i=0; i<8; i++) world.addDonut();
+    for(var i=0; i<1; i++) world.addCop();
+    
+    var canvas = document.querySelector('canvas');
+    controller = LoadCanvas(canvas, RenderGame);
+    controller.start();
+  }
+  
+  // change viewport to check bullets
+  
+  function RenderGame(canvases, contexts, width, height){
+    var canvas = canvases[0],
+        ctx = contexts[0];
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    world.render(ctx, width, height);
+  }
+  
+  function World(){
+    var self = this;
+    
+    var donuts = [],
+        cops = [];
+    
+    self.render = Render;
+    
+    self.getCops = GetCops;
+    self.addCop = AddCop;
+    self.removeCop = RemoveCop;
+    
+    self.getDonuts = GetDonuts;
+    self.addDonut = AddDonut;
+    self.removeDonut = RemoveDonut;
+
+    function Render(ctx, width, height){
+      for(var i=donuts.length,donut; donut=donuts[--i];){
+        donut.act();
+        donut.render(ctx, width, height);
+      }
+      for(var i=cops.length,cop; cop=cops[--i];){
+        cop.act();
+        cop.render(ctx, width, height);
+      }
+    }
+    
+    function Construct(cls, args){
+      function F(){
+        return cls.apply(this, args);
+      }
+      F.prototype = cls.prototype;
+      return new F();
+    }
+    
+    function GetCops(){
+      return cops;
+    }
+    function AddCop(){
+      var args = [self].concat(Array.prototype.slice.call(arguments)),
+          cop = Construct(Cop, args);
+      cops.push(cop);
+      return cop;
+    }
+    function RemoveCop(cop){
+      var index = cops.indexOf(cop);
+      if(index == -1) return;
+      cops.splice(index, 1);
+    }
+    
+    function GetDonuts(){
+      return donuts;
+    }
+    function AddDonut(){
+      var args = [self].concat(Array.prototype.slice.call(arguments)),
+          donut = Construct(Donut, args);
+      donuts.push(donut);
+      return donut;
+    }
+    function RemoveDonut(cop){
+      var index = donuts.indexOf(donut);
+      if(index == -1) return;
+      donuts.splice(index, 1);
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(){});
+    constructor.apply(self, arguments);
+  }
+  
+  function Donut(){
+    var self = this;
+    
+    self.RENDER_WIDTH = 20;
+    self.RENDER_HEIGHT = 20;
+    
+    self.WANDER_VELOCITY = 0.0025;
+    self.WANDER_RADIUS = 30;
+    self.WANDER_DISTANCE = 40;
+    self.WANDER_ANGLE = 20 *Math.PI/180;
+    
+    var world;
+    
+    var x, y, wander=0, direction=0;
+    
+    var image = new Image();
+    image.src = '/images/game/donut.png';
+    
+    self.getX = GetX;
+    self.getY = GetY;
+    
+    self.act = Act;
+    
+    self.render = Render;
+    
+    function GetX(){
+      return x;
+    }
+    function GetY(){
+      return y;
+    }
+    
+    function Act(){
+      Wander();
+      CheckWalls();
+    }
+    function Wander(){
+  		wander += (Math.random()-0.5)*2 * self.WANDER_ANGLE;
+
+  		var circle = {
+  			x: x + self.WANDER_DISTANCE*Math.cos(direction),
+  			y: y + self.WANDER_DISTANCE*Math.sin(direction)
+  		}
+	
+  		var dest = {
+  			x: circle.x + self.WANDER_RADIUS*Math.cos(wander),
+  			y: circle.y + self.WANDER_RADIUS*Math.sin(wander)
+  		}
+
+  		direction = Math.atan2(dest.y-y, dest.x-x);
+  		x += self.WANDER_VELOCITY * Math.cos(direction);
+  		y += self.WANDER_VELOCITY * Math.sin(direction);
+    }
+    function CheckWalls(){
+      if(x > 1){direction = Math.PI; wander = Math.PI;}
+      if(x < 0){direction = 0; wander = 0;}
+      
+      if(y > 1){direction = 3*Math.PI/2; wander = 3*Math.PI/2;}
+      if(y < 0){direction = Math.PI/2; wander = Math.PI/2;}
+      
+      if(x > 1) x = 1; else if(x < 0) x = 0;
+      if(y > 1) y = 1; else if(y < 0) y = 0;
+    }
+    
+    function Render(ctx, width, height){
+      ctx.save();
+      ctx.translate(x*width, y*height);
+      ctx.rotate(direction);
+      
+      ctx.drawImage(image, -self.RENDER_WIDTH/2, -self.RENDER_HEIGHT/2, self.RENDER_WIDTH, self.RENDER_HEIGHT);
+      
+      ctx.restore();
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(){
+      this(new World());
+    });
+    constructor.overload(function(world){
+      this(world, Math.random(), Math.random());
+    }, ['object']);
+    constructor.overload(function(_world, _x, _y){
+      world = _world;
+      x = _x;
+      y = _y;
+    }, ['object', 'number', 'number']);
+    constructor.apply(self, arguments);
+  }
+  
+  function Cop(){
+    var self = this;
+    
+    // 200,000 (350 donuts)
+    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-2.290001475033552,"weights":{"0":0.6187146361609851,"1":-11.145597355406059,"2":-20.664722212369973,"3":5.981051937088034,"4":18.650250114524543}},"1":{"bias":-7.133647654002626,"weights":{"0":-12.690396381112073,"1":22.20954213152128,"2":42.99725610518602,"3":15.97841378380717,"4":-13.971418680375717}},"2":{"bias":14.17535361455352,"weights":{"0":8.884055400423456,"1":5.670517595802065,"2":3.684736020917042,"3":-2.351753235249064,"4":-0.8191345833051179}}},{"0":{"bias":69.97397605539705,"weights":{"0":-142.49620785172857,"1":-1.6798102213079147,"2":75.26963053818069}},"1":{"bias":3.2910984063275173,"weights":{"0":-11.066013841395515,"1":-5.683346235156323,"2":6.455597937365308}}}],"outputLookup":false,"inputLookup":false};
+    // 10,000 (150 donuts)
+    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":25.467633278441518,"weights":{"0":88.60796785700941,"1":38.65959980487583,"2":-77.56145399234472,"3":-91.37219991370583,"4":-39.53532538849696}},"1":{"bias":15.916491017197936,"weights":{"0":43.88013384587618,"1":-4.486414019450953,"2":-92.80534242823705,"3":-48.75793772377618,"4":6.651497766215166}},"2":{"bias":-35.98467741494095,"weights":{"0":23.57215995209292,"1":-11.270246670857023,"2":28.589479264533335,"3":-24.14447598625013,"4":30.691802626196306}}},{"0":{"bias":3.604496037494943,"weights":{"0":-0.3502607730223944,"1":-1.3142194984509148,"2":45.987655034170395}},"1":{"bias":0.42351427521131224,"weights":{"0":3.365245196615259,"1":173.52640283055482,"2":-173.67559578153546}}}],"outputLookup":false,"inputLookup":false};
+    // 20,000 (20 donuts)
+    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":14.202932227971429,"weights":{"0":39.8744604612299,"1":23.902053379028413,"2":-53.842085595451806,"3":-52.63544716654494,"4":-31.503545899423333}},"1":{"bias":-17.52120681804812,"weights":{"0":-12.67168529858622,"1":39.640741408163194,"2":70.08158506646491,"3":14.757093045951237,"4":-94.73647827732529}},"2":{"bias":-67.53747059436996,"weights":{"0":54.53867821381814,"1":-1.7632376726452026,"2":83.80835909069056,"3":-65.23300182656772,"4":0.06955881002734594}}},{"0":{"bias":5.308686557430482,"weights":{"0":111.00623333542406,"1":-1.181362756129798,"2":-3.4593486679114567}},"1":{"bias":-0.09188328891873343,"weights":{"0":167.30001112833784,"1":1.320846809812586,"2":-167.06778176202627}}}],"outputLookup":false,"inputLookup":false};
+    // 5,000 (25 donuts) (negative tests)
+    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-60.34593954464369,"weights":{"0":-5.414625484335003,"1":-32.936267255814634,"2":113.86930441233689,"3":10.063515827398307,"4":35.793046328645}},"1":{"bias":-12.42075309402327,"weights":{"0":-5.842280677972979,"1":5.254179260157037,"2":21.848676990846112,"3":7.3038420918288365,"4":-11.163110938532283}},"2":{"bias":-42.469814183007166,"weights":{"0":10.570460245404604,"1":11.776605973773824,"2":48.232392147399594,"3":-8.150017938705336,"4":-20.754186601346788}}},{"0":{"bias":2.925345347972324,"weights":{"0":49.54634229045692,"1":58.63123759192721,"2":-64.8316382207897}},"1":{"bias":-0.6814678849059398,"weights":{"0":-70.83140692075018,"1":74.86250650163802,"2":-82.58158330435298}}}],"outputLookup":false,"inputLookup":false};
+    // 5,000 (25 donuts) (negative tests with random 'move')
+    const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-26.92259014509694,"weights":{"0":24.470110446003147,"1":-87.88682408028893,"2":51.40384776886728,"3":-15.577366817983394,"4":74.76629972316394}},"1":{"bias":14.031274219543018,"weights":{"0":8.488379321167857,"1":-9.298904171734538,"2":0.07865529907293982,"3":9.010855597259805,"4":9.635390980532264}},"2":{"bias":-28.8430736465312,"weights":{"0":46.58103715220454,"1":17.86290869927662,"2":6.610382650317534,"3":-13.205897963644277,"4":20.87084822601055}}},{"0":{"bias":0.08090710399251842,"weights":{"0":-3.1430362645400187,"1":6.351274408010473,"2":0.035247751345450544}},"1":{"bias":-11.987287773180594,"weights":{"0":-2.2559030544452985,"1":9.660882886356497,"2":6.309412215300757}}}],"outputLookup":false,"inputLookup":false};
+    const run_from_brain = true;
+    
+    self.RENDER_WIDTH = 50;
+    self.RENDER_HEIGHT = 32;
+    
+    self.VIEW_RADIUS = 0.2;
+    self.VIEW_ANGLE = 0.4;
+    
+    self.VELOCITY = 0.005;
+    self.ANGULAR_VELOCITY = 0.04;
+    
+    var world;
+    
+    var x, y, direction = 0;
+    
+    var trainingdata = [], istraining = false, traininggoal = 30000, trainedpoints = 0;
+    var network = run_from_brain ? new brain.NeuralNetwork().fromJSON(brainstate) : new brain.NeuralNetwork({hiddenLayers:[5,3]});
+    
+    var image = new Image();
+    image.src = '/images/game/cop.png';
+    
+    self.getX = GetX;
+    self.getY = GetY;
+    self.getAngle = GetAngle;
+    
+    self.act = Act;
+    
+    self.render = Render;
+    
+    self.getView = GetView;
+    
+    function GetX(){
+      return x;
+    }
+    function GetY(){
+      return y;
+    }
+    function GetAngle(){
+      return direction - Math.PI*2*Math.floor(direction / (Math.PI*2));
+    }
+    
+    function Act(){
+      // TurnLeft();
+      
+      if(run_from_brain) ActNeuralNet(); else ActRandom();
+      CheckWalls();
+      TryTraining();
+    }
+    function CheckWalls(){
+      if(x > 1) direction = Math.PI;
+      if(x < 0) direction = 0;
+    
+      if(y > 1) direction = 3*Math.PI/2;
+      if(y < 0) direction = Math.PI/2;
+    
+      if(x > 1) x = 1; else if(x < 0) x = 0;
+      if(y > 1) y = 1; else if(y < 0) y = 0;
+    }
+    
+    var iters = 0, maxiters = 20, left = true;
+    function ActRandom(){
+      if(Math.random() < 0.75) Move(true);
+      if(++iters > maxiters){
+        iters = 0;
+        left = Math.random() < 0.5;
+      }
+      if(left) TurnLeft(); else TurnRight();
+    }
+    
+    function DefaultTrainer(){
+      return {move:Math.random(), turn:0, donut: {getX:function(){return -1;}, getY:function(){return -1;}}};
+    }
+    
+    function ActNeuralNet(){
+      var view = GetView();
+      if(view.length == 0) view[0] = DefaultTrainer().donut;
+      
+      var donut = view[0];
+      var data = FormInputData(donut);
+      
+      var response = network.run(data);
+      var move = response[0];
+      var turn = response[1];
+      
+      if(move > 0.5) Move(true); else Move(false);
+      if(turn > 0.5) TurnRight(); else TurnLeft();
+    }
+    
+    function Move(forwards){
+      x += (forwards?1:-1)*self.VELOCITY*Math.cos(direction);
+      y += (forwards?1:-1)*self.VELOCITY*Math.sin(direction);
+    }
+    function TurnLeft(){
+      direction -= self.ANGULAR_VELOCITY;
+    }
+    function TurnRight(){
+      direction += self.ANGULAR_VELOCITY;
+    }
+    
+    window.exportBrain = function(){
+      return JSON.stringify(network.toJSON());
+    }
+    
+    function TryTraining(){
+      var view = GetView();
+      for(var i=0,donut; donut=view[i++];){
+        // 1 = move forward / turn right
+        var training = {
+          donut: donut
+        };
+        
+        var dist = DistanceBetween(x, y, donut.getX(), donut.getY());
+        if(dist > self.VIEW_RADIUS*0.67) training.move = 1;
+        else training.move = 0;
+        
+        var angle = Math.atan2(donut.getY()-y, donut.getX()-x),
+            anglediff = angle-direction,
+            fixedanglediff = anglediff - Math.PI*2*Math.floor(anglediff / (Math.PI*2));
+  
+        if(fixedanglediff < Math.PI) training.turn = 1;
+        else training.turn = 0;
+        
+        Train(training);
+      }
+      
+      if(view.length == 0) Train(DefaultTrainer());
+    }
+    function FormInputData(donut){
+      return [
+        self.getX(),
+        self.getY(),
+        self.getAngle()/(Math.PI*2),
+        donut.getX(),
+        donut.getY()
+      ];
+    }
+    function Train(data){
+      var normalized_input = FormInputData(data.donut);
+      
+      var normalized_output = [
+        data.move,
+        data.turn
+      ];
+      
+      trainingdata.push({
+        input: normalized_input,
+        output: normalized_output
+      });
+      
+      UpdateNetwork();
+    }
+    function UpdateNetwork(){
+      if(trainingdata.length-trainedpoints < traininggoal){
+        var diff = traininggoal - (trainingdata.length-trainedpoints);
+        if(diff%250 == 0) console.log(diff+' REMAINING POINTS BEFORE UPDATE');
+        return;
+      };
+      if(istraining) return;
+      
+      trainedpoints = trainingdata.length;
+      controller.stop();
+      
+      console.log('Training...');
+      
+      if(!!window.Worker){
+        var worker = new Worker('/resources/scripts/game/trainingworker.js');
+        worker.onmessage = OnWorkerMessage;
+        worker.onerror = OnWorkerError;
+        worker.postMessage(JSON.stringify(trainingdata));
+      }else{
+        network.train(trainingdata, {
+          iterations: 9000
+        });
+        istraining = false;
+        console.log('Training Complete');
+      }
+    }
+    function OnWorkerMessage(event){
+      var data = JSON.parse(event.data);
+      if(data.type == 'result'){
+        network = new brain.NeuralNetwork().fromJSON(data.net);
+        console.log('Training Complete');
+        istraining = false;
+      }
+    }
+    function OnWorkerError(){
+      alert('Error Training Network');
+    }
+    
+    function Render(ctx, width, height){
+      var diagonal = Math.sqrt(width*width+height*height),
+          view_radius = self.VIEW_RADIUS*diagonal;
+      
+      ctx.save();
+      ctx.translate(x*width, y*height);
+      ctx.rotate(direction);
+      
+      var gradient = ctx.createRadialGradient(
+        0, 0, 0,
+        0, 0, view_radius
+      );
+      gradient.addColorStop(0, 'rgba(200,0,0,0.2)');
+      gradient.addColorStop(1, 'rgba(200,0,0,0)');
+      ctx.fillStyle = gradient;
+      
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, view_radius, -self.VIEW_ANGLE, self.VIEW_ANGLE, false);
+      ctx.fill();
+      
+      ctx.drawImage(image, -self.RENDER_WIDTH/2, -self.RENDER_HEIGHT/2, self.RENDER_WIDTH, self.RENDER_HEIGHT);
+      
+      ctx.restore();
+    }
+    
+    function GetView(){
+      var view = [];
+      
+      for(var i=0,donut; donut=world.getDonuts()[i++];){
+        var points = [
+          {x:donut.getX(), y:donut.getY()},
+          {x:x, y:y},
+          {x:x+Math.cos(direction), y:y+Math.sin(direction)}
+        ];
+        if(AngleBetween.apply(self, points) < self.VIEW_ANGLE) view.push(donut);
+      }
+      
+      return view;
+    }
+    function AngleBetween(A,B,C) {
+        var AB = Math.sqrt(Math.pow(B.x-A.x,2)+ Math.pow(B.y-A.y,2));    
+        var BC = Math.sqrt(Math.pow(B.x-C.x,2)+ Math.pow(B.y-C.y,2)); 
+        var AC = Math.sqrt(Math.pow(C.x-A.x,2)+ Math.pow(C.y-A.y,2));
+        return Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB));
+    }
+    function DistanceBetween(x1, y1, x2, y2){
+      return Math.sqrt(Math.pow(x2-x1,2)+Math.pow(y2-y1,2));
+    }
+    
+    var constructor = Overload.function();
+    constructor.overload(function(){
+      this(new World());
+    });
+    constructor.overload(function(world){
+      this(world, Math.random(), Math.random());
+    }, ['object']);
+    constructor.overload(function(_world, _x, _y){
+      world = _world;
+      x = _x;
+      y = _y;
+    }, ['object', 'number', 'number']);
+    constructor.apply(self, arguments);
+  }
+  
+  var LoadCanvas = Overload.function();
+  LoadCanvas.overload(function(canvas, Renderer){
+    return this([canvas], Renderer);
+  }, ['object', 'function']);
+  LoadCanvas.overload(function(canvases, Renderer){
+    var contexts = [], width, height;
+    var stopRender = false, isRunning = false;
+    
+    (function Load(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        contexts.push(canvas.getContext('2d'));
+      
+      ResizeCanvases();
+      window.addEventListener('resize', ResizeCanvases);
+    })();
+    
+    function ResizeCanvases(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        ResizeCanvas(canvas);
+    }
+    function ResizeCanvas(canvas){
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    }
+    
+    function Render(){
+      Renderer(canvases, contexts, width, height);
+    }
+    function Stop(){
+      stopRender = true;
+    }
+    function Start(){
+      if(isRunning) return;
+      stopRender = false;
+      
+      (function Run(){
+        if(stopRender) return;
+        
+        requestAnimationFrame(Run);
+        Renderer(canvases, contexts, width, height);
+      })();
+    }
+    
+    return {
+      'stop': Stop,
+      'start': Start,
+      'render': Render
+    };
+  }, ['array', 'function']);
+  
+})();
+</script>
+</body>
+</html>
