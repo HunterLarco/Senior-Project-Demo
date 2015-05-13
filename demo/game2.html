@@ -47,19 +47,18 @@ canvas{
 <script type='text/javascript'>
 (function(){
   
-  var world;
+  var world, controller;
   
   window.addEventListener('load', Init);
   
   function Init(){
     world = new World();
     new NeuralNetPlayer(world);
-    new Walker(world);
+    for(var i=0; i<1; i++) new Walker(world);
 
-    window.players = world.getPlayers();
-    
     var canvas = document.querySelector('canvas');
-    LoadCanvas(canvas, RenderGame).start();
+    controller = LoadCanvas(canvas, RenderGame);
+    controller.start();
   }
   
   // change viewport to check bullets
@@ -266,8 +265,8 @@ canvas{
       Move();
       Turn();
       
-      if(x > 1) x = 0; else if(x < 0) x = 1;
-      if(y > 1) y = 0; else if(y < 0) y = 1;
+      if(x > 1) x = 1; else if(x < 0) x = 0;
+      if(y > 1) y = 1; else if(y < 0) y = 0;
     }
     function Turn(){
       angular_velocity = turning == 0 ? 0 : (turning * self.MAX_ANGULAR_VELOCITY);
@@ -442,150 +441,125 @@ canvas{
   function NeuralNetPlayer(){
     var self = this;
     
-    var trainingdata = [], network = new brain.NeuralNetwork({hiddenLayers:[8,6]});
+    const TRAIN_WAIT = 5000;
+    
+    const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":54.45126695040162,"weights":{"0":30.215151015292104,"1":30.204084964650956,"2":-59.73222258635554,"3":-48.968578692415015,"4":-19.74921993323871}},"1":{"bias":27.00340701483345,"weights":{"0":15.161566794702198,"1":15.035588685740864,"2":-45.67290248184774,"3":-11.627292894839897,"4":-48.95675576740574}},"2":{"bias":13.673105562454229,"weights":{"0":7.6076101171171,"1":7.75702623541927,"2":-51.44603167391946,"3":-19.99897794775298,"4":-1.5923557105997643}}},{"0":{"bias":32.914251960029894,"weights":{"0":-36.25473191478151,"1":-72.91251699627549,"2":73.04720767764678}}}],"outputLookup":false,"inputLookup":false};
+    
+    var trainingdata = [], network = new brain.NeuralNetwork().fromJSON(brainstate);
     var lastupdatelength = 0;
     var istraining = false;
-    var hastrained = false;
+    var hastrained = true;
     var trains = 0;
     
-    var actlog = [];
+    window.exportBrain = function(){
+      return JSON.stringify(network.toJSON());
+    }
     
     var player;
-    
-    self.getActLog = GetActLog;
-    self.trainNegatives = TrainNegatives;
-    self.updateNetwork = UpdateNetwork;
+    var viewplayers = [];
     
     function Act(){
-      if(hastrained && Math.random() > 0.1) return ActWithNetwork();
-      else return ActWithRandom();
+      var action = hastrained ? ActWithNetwork() : ActWithRandom();
+      
+      player.VIEW_ANGLE = Math.PI/6;
+      var newplayers = player.getView().players;
+      
+      for(var i=0,oldplayer; oldplayer=viewplayers[i++];){
+        if(newplayers.indexOf(oldplayer) == -1){
+          var angle = Math.atan2(oldplayer.getY() - player.getY(), oldplayer.getX() - player.getX());
+          if(angle > player.getAngle() ||
+            (angle < player.getAngle() &&
+            angle < Math.PI/2 && player.getAngle() > 1.5*Math.PI)) TrainLeft(oldplayer);
+          else TrainRight(oldplayer);
+        }
+      }
+      
+      viewplayers = newplayers;
+      player.VIEW_ANGLE = Math.PI/4;
     }
     function ActWithRandom(){
       var action = {
-        'move': Math.random() < 0.5,
-        'stop': Math.random() < 0.5,
-        'turnleft': Math.random() < 0.5,
-        'turnright': Math.random() < 0.5,
-        'stopturn': Math.random() < 0.5,
-        'fire': Math.random() < 0.05
+        'turnleft':  Math.random() < 0.1,
+        'turnright': Math.random() < 0.1
       };
       
       RunAction(action);
+      
+      return action;
     }
     function ActWithNetwork(){
       var view = SetupViewObject(player.getView());
-      var loc = GetLoc();
-      var response = network.run(loc.concat(view));
+      var stat = GetStatus();
+      
+      var response = network.run(stat.concat(view));
       
       var action = {
-        'move':      response[0] > 0,
-        'stop':      response[1] > 0,
-        'turnleft':  response[2] > 0,
-        'turnright': response[3] > 0,
-        'stopturn':  response[4] > 0,
-        'fire':      response[5] > 0
+        'turnleft':  response[0] < 0.5,
+        'turnright': response[0] >= 0.5
       };
       
       RunAction(action);
+      
+      return action;
     }
     function RunAction(action){
-      if(action.move) player.move();
-      if(action.stop) player.stop();
       if(action.turnleft) player.turnleft();
       if(action.turnright) player.turnright();
-      if(action.stopturn) player.stopturn();
-      if(action.fire) Fire();
-      
-      Log({
-        action: SetupActionObject(action),
-        view: SetupViewObject(player.getView()),
-        loc: GetLoc()
-      });
     }
     
-    function GetLoc(){
-      return [player.getX(), player.getY(), player.getAngle(), player.getVelocity()];
+    function GetStatus(){
+      // normalized
+      return [player.getX(), player.getY(), player.getAngle()/(Math.PI*2)];
     }  
     
-    function SetupActionObject(action){
-      return [
-        action.move      ? 1 : -1,
-        action.stop      ? 1 : -1,
-        action.turnleft  ? 1 : -1,
-        action.turnright ? 1 : -1,
-        action.stopturn  ? 1 : -1,
-        action.fire      ? 1 : -1
-      ];
-    }
     function SetupViewObject(view){
-      var player_data = [[-1, -1, 0, 0]];
+      var player_data = [[player.getX()+Math.cos(player.getAngle())/1000, player.getY()+Math.sin(player.getAngle())/1000]];
       
-      for(var i=0,player; player=view.players[i++];){
+      for(var i=0,viewplayer; viewplayer=view.players[i++];){
         player_data.push([
-          player.getX(),
-          player.getY(),
-          player.getAngle(),
-          player.getVelocity()
+          viewplayer.getX(),
+          viewplayer.getY()
         ]);
       }
       
-      return player_data.unshift();
+      return player_data[player_data.length-1];
     }
     
-    function Fire(){
-      var log = GetActLog();
-      
-      player.fire().onhit = function OnHit(bullet, firer, hitplayer){
-        if(firer == hitplayer)
-          for(var i=0,action; action=log[i++];)
-            action.action[5] = 0;
-        
-        if(!!hitplayer.nplayer) hitplayer.nplayer.trainNegatives();
-        
-        for(var i=0,action; action=log[i++];)
-          trainingdata.push({
-            input: action.loc.concat(action.view),
-            output: action.action
-          });
-        
-        UpdateNetwork();
-      }
+    function TrainRight(leavingplayer){
+      Train(leavingplayer, 'left');
     }
-    function TrainNegatives(){
-      var log = GetActLog();
+    function TrainLeft(leavingplayer){
+      Train(leavingplayer, 'right');
+    }
+    function Train(leavingplayer, direction){
+      var viewdata = [
+        leavingplayer.getX(),
+        leavingplayer.getY()
+      ];
       
-      for(var i=0,action; action=log[i++];)
-        trainingdata.push({
-          input: action.loc.concat(action.view),
-          output: [1, 0, 1, 1, 0, 0]
-        });
+      var stat = GetStatus();
+      
+      trainingdata.push({
+        input: stat.concat(viewdata),
+        output: [direction == 'left' ? 0 : 1]
+      });
       
       UpdateNetwork();
     }
     
-    function Log(action){
-      action.time = Date.now();
-      actlog.push(action);
-      CleanActLog();
-    }
-    function CleanActLog(){
-      var now = Date.now();
-      
-      while(now - actlog[0].time > 1000)
-        actlog.shift();
-    }
-    function GetActLog(){
-      CleanActLog();
-      return actlog;
-    }
-    
-    // updates every 500 data points and waits for the last train to finish
+    // updates every 'TRAIN_WAIT' data points and waits for the last train to finish
     function UpdateNetwork(){
       if(trainingdata.length == 0) return;
       
-      if(trainingdata.length - lastupdatelength < 500 || istraining) return;
+      if(trainingdata.length - lastupdatelength < TRAIN_WAIT || istraining){
+        var diff = trainingdata.length - lastupdatelength;
+        if(diff%250 == 0) console.log(TRAIN_WAIT-diff + ' REMAINING DATA POINTS');
+        return;
+      };
       lastupdatelength = trainingdata.length;
       istraining = true;
+      
+      controller.stop();
       
       console.log('Training... #'+(++trains));
       
@@ -620,7 +594,8 @@ canvas{
     
     var constructor = Overload.function();
     constructor.overload(function(world){
-      player = world.addPlayer(Math.random(), Math.random());
+      player = world.addPlayer(0.5, 0.5);
+      // player = world.addPlayer(Math.random(), Math.random());
       player.onact = Act;
       player.nplayer = self;
     }, ['object']);
