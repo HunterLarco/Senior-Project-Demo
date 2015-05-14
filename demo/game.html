@@ -1,21 +1,17 @@
 <!DOCTYPE html>
 <style>
 
-canvas{
-  position:fixed;
-  
-  top:0px;
-  right:0px;
-  
-  width:100vh;
-  height:100vh;
-}
-
-.sidebar{
-  height:100vh;
-  margin-right: 100vh;
+body{
+  text-align:center;
   
   background:rgb(21,31,41);
+}
+
+canvas.main{
+  width:100vh;
+  height:100vh;
+  
+  background:rgb(255,255,255);
 }
 
 </style>
@@ -40,36 +36,103 @@ canvas{
 <body>
 
 
-<div class='sidebar'></div>
-<canvas></canvas>
+<canvas class='main'></canvas>
 
 
 <script type='text/javascript'>
 (function(){
   
-  var world, controller;
+  var world, controller, trainer_world;
+  const NUM_DONUTS = 2;
+  const NUM_COPS = 1;
   
   window.addEventListener('load', Init);
   
   function Init(){
     world = new World();
-    for(var i=0; i<2; i++) world.addDonut();
-    for(var i=0; i<1; i++) world.addCop();
+    trainer_world = new World();
+    
+    for(var i=0; i<NUM_DONUTS; i++){
+      world.addDonut();
+      trainer_world.addDonut();
+    }
+    for(var i=0; i<NUM_COPS; i++){
+      world.addCop();
+      var cop = trainer_world.addCop();
+      cop.useAlgorithm(true);
+    }
+    
+    world.addCop().forceRandom(true);
     
     var canvas = document.querySelector('canvas');
-    controller = LoadCanvas(canvas, RenderGame);
+    
+    var trainer = document.createElement('canvas');
+    trainer.width = 800;
+    trainer.height = 800;
+    
+    var graph = document.createElement('canvas');
+    graph.width = 900;
+    graph.height = 75;
+    
+    controller = LoadCanvas([canvas, trainer, graph], RenderGame);
     controller.start();
   }
   
   // change viewport to check bullets
   
-  function RenderGame(canvases, contexts, width, height){
+  function RenderGame(canvases, contexts){
+    // main game
+    
     var canvas = canvases[0],
-        ctx = contexts[0];
+        ctx = contexts[0],
+        width = canvas.width,
+        height = canvas.height;
     
     ctx.clearRect(0, 0, width, height);
     
     world.render(ctx, width, height);
+    
+    // trainer
+    
+    canvas = canvases[1];
+    ctx = contexts[1];
+    width = canvas.width;
+    height = canvas.height;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillRect(0, 0, width, height);
+    
+    trainer_world.render(ctx, width, height);
+    
+    contexts[0].drawImage(canvas, 20, 20, 150, 150);
+    contexts[0].strokeRect(19.5, 19.5, 150, 150);
+    
+    // graph
+    
+    canvas = canvases[2];
+    ctx = contexts[2];
+    width = canvas.width;
+    height = canvas.height;
+    
+    var imageData = ctx.getImageData(1, 0, width-1, height);
+    ctx.putImageData(imageData, 0, 0);
+    ctx.clearRect(width-1, 0, 1, height);
+    
+    var netp = world.getCops()[0].getSuccess(),
+        randp = world.getCops()[1].getSuccess();
+    
+    ctx.fillStyle = 'rgb(0,0,255)';
+    ctx.fillRect(width-1, height*(1-netp), 1, 1);
+    
+    ctx.fillStyle = 'rgb(255,0,0)';
+    ctx.fillRect(width-1, height*(1-randp), 1, 1);
+    
+    contexts[0].fillStyle = 'rgba(255,255,255,0.95)';
+    contexts[0].fillRect(20, 180, 150, 75);
+    contexts[0].drawImage(canvas, 20, 180, 150, 75);
+    contexts[0].strokeRect(19.5, 179.5, 150, 75);
   }
   
   function World(){
@@ -234,20 +297,6 @@ canvas{
   function Cop(){
     var self = this;
     
-    // 200,000 (350 donuts)
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-2.290001475033552,"weights":{"0":0.6187146361609851,"1":-11.145597355406059,"2":-20.664722212369973,"3":5.981051937088034,"4":18.650250114524543}},"1":{"bias":-7.133647654002626,"weights":{"0":-12.690396381112073,"1":22.20954213152128,"2":42.99725610518602,"3":15.97841378380717,"4":-13.971418680375717}},"2":{"bias":14.17535361455352,"weights":{"0":8.884055400423456,"1":5.670517595802065,"2":3.684736020917042,"3":-2.351753235249064,"4":-0.8191345833051179}}},{"0":{"bias":69.97397605539705,"weights":{"0":-142.49620785172857,"1":-1.6798102213079147,"2":75.26963053818069}},"1":{"bias":3.2910984063275173,"weights":{"0":-11.066013841395515,"1":-5.683346235156323,"2":6.455597937365308}}}],"outputLookup":false,"inputLookup":false};
-    // 10,000 (150 donuts)
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":25.467633278441518,"weights":{"0":88.60796785700941,"1":38.65959980487583,"2":-77.56145399234472,"3":-91.37219991370583,"4":-39.53532538849696}},"1":{"bias":15.916491017197936,"weights":{"0":43.88013384587618,"1":-4.486414019450953,"2":-92.80534242823705,"3":-48.75793772377618,"4":6.651497766215166}},"2":{"bias":-35.98467741494095,"weights":{"0":23.57215995209292,"1":-11.270246670857023,"2":28.589479264533335,"3":-24.14447598625013,"4":30.691802626196306}}},{"0":{"bias":3.604496037494943,"weights":{"0":-0.3502607730223944,"1":-1.3142194984509148,"2":45.987655034170395}},"1":{"bias":0.42351427521131224,"weights":{"0":3.365245196615259,"1":173.52640283055482,"2":-173.67559578153546}}}],"outputLookup":false,"inputLookup":false};
-    // 20,000 (20 donuts)
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":14.202932227971429,"weights":{"0":39.8744604612299,"1":23.902053379028413,"2":-53.842085595451806,"3":-52.63544716654494,"4":-31.503545899423333}},"1":{"bias":-17.52120681804812,"weights":{"0":-12.67168529858622,"1":39.640741408163194,"2":70.08158506646491,"3":14.757093045951237,"4":-94.73647827732529}},"2":{"bias":-67.53747059436996,"weights":{"0":54.53867821381814,"1":-1.7632376726452026,"2":83.80835909069056,"3":-65.23300182656772,"4":0.06955881002734594}}},{"0":{"bias":5.308686557430482,"weights":{"0":111.00623333542406,"1":-1.181362756129798,"2":-3.4593486679114567}},"1":{"bias":-0.09188328891873343,"weights":{"0":167.30001112833784,"1":1.320846809812586,"2":-167.06778176202627}}}],"outputLookup":false,"inputLookup":false};
-    // 5,000 (25 donuts) (negative tests)
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-60.34593954464369,"weights":{"0":-5.414625484335003,"1":-32.936267255814634,"2":113.86930441233689,"3":10.063515827398307,"4":35.793046328645}},"1":{"bias":-12.42075309402327,"weights":{"0":-5.842280677972979,"1":5.254179260157037,"2":21.848676990846112,"3":7.3038420918288365,"4":-11.163110938532283}},"2":{"bias":-42.469814183007166,"weights":{"0":10.570460245404604,"1":11.776605973773824,"2":48.232392147399594,"3":-8.150017938705336,"4":-20.754186601346788}}},{"0":{"bias":2.925345347972324,"weights":{"0":49.54634229045692,"1":58.63123759192721,"2":-64.8316382207897}},"1":{"bias":-0.6814678849059398,"weights":{"0":-70.83140692075018,"1":74.86250650163802,"2":-82.58158330435298}}}],"outputLookup":false,"inputLookup":false};
-    // 5,000 (25 donuts) (negative tests with random 'move')
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-26.92259014509694,"weights":{"0":24.470110446003147,"1":-87.88682408028893,"2":51.40384776886728,"3":-15.577366817983394,"4":74.76629972316394}},"1":{"bias":14.031274219543018,"weights":{"0":8.488379321167857,"1":-9.298904171734538,"2":0.07865529907293982,"3":9.010855597259805,"4":9.635390980532264}},"2":{"bias":-28.8430736465312,"weights":{"0":46.58103715220454,"1":17.86290869927662,"2":6.610382650317534,"3":-13.205897963644277,"4":20.87084822601055}}},{"0":{"bias":0.08090710399251842,"weights":{"0":-3.1430362645400187,"1":6.351274408010473,"2":0.035247751345450544}},"1":{"bias":-11.987287773180594,"weights":{"0":-2.2559030544452985,"1":9.660882886356497,"2":6.309412215300757}}}],"outputLookup":false,"inputLookup":false};
-    // 7,500 (25 donut) (negative tests with random 'move')
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-13.963074200339511,"weights":{"0":-4.372859218804556,"1":25.649477928991338,"2":56.16129975448954,"3":8.939961793443556,"4":-8.271472078446727}},"1":{"bias":37.321951512428896,"weights":{"0":-3.1663757193565716,"1":-2.8454121948873814,"2":-55.68302202305616,"3":28.40349342594043,"4":20.507377196023683}},"2":{"bias":-0.14637623354074894,"weights":{"0":-4.288627784661817,"1":1.0495323477452583,"2":-13.229227684493255,"3":8.136488733963246,"4":6.449555810487794}}},{"0":{"bias":45.11322884342173,"weights":{"0":-43.95137990028257,"1":78.81044279031896,"2":-81.91118212081813}},"1":{"bias":-22.03092388696291,"weights":{"0":-11.5968346339102,"1":36.493349389623575,"2":-10.874167128203737}}}],"outputLookup":false,"inputLookup":false};
-    // 6,500 (15 donut) (negative tests with random 'move')
-    // const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":-1.9857712298038166,"weights":{"0":16.19715173978133,"1":-3.2351969921812445,"2":17.757681449531834,"3":-18.7802492409605,"4":2.3278038519043176}},"1":{"bias":31.579172573969455,"weights":{"0":-11.611840186735712,"1":-2.155452701309023,"2":-44.34887735442623,"3":16.252921109788165,"4":11.115455055077355}},"2":{"bias":-13.676877938221546,"weights":{"0":51.509891362721284,"1":16.654417483728906,"2":-15.669477413814034,"3":61.20852026585463,"4":28.416907146789576}}},{"0":{"bias":55.653239428238,"weights":{"0":-55.878981786713474,"1":-57.70892445889867,"2":59.21092635827132}},"1":{"bias":-8.251095897351448,"weights":{"0":4.131600581631139,"1":5.013142833400059,"2":2.6706729384354984}}}],"outputLookup":false,"inputLookup":false};
     // 6,500 (10 donut) (negative tests with stop moving)
     const brainstate = {"layers":[{"0":{},"1":{},"2":{},"3":{},"4":{}},{"0":{"bias":7.633961417198105,"weights":{"0":-4.6015895662401425,"1":20.47982836839132,"2":-37.28961731650353,"3":0.371955237085253,"4":-32.989804929062714}},"1":{"bias":18.64417350020716,"weights":{"0":-42.759679030678754,"1":0.6274138314977123,"2":-51.63242436109653,"3":29.350526583579384,"4":-13.47147107671827}},"2":{"bias":60.49161794277581,"weights":{"0":-18.985805553065884,"1":-10.47726200986812,"2":-74.49035776860471,"3":18.922719475260152,"4":20.808572634806332}}},{"0":{"bias":2.842693373350413,"weights":{"0":-2.8321825396698337,"1":3.4966840460009383,"2":0.128406548503713}},"1":{"bias":-2.4969661570804975,"weights":{"0":-5.1691171611021005,"1":-1.3647242243041742,"2":4.354072062364879}}}],"outputLookup":false,"inputLookup":false};
     const run_from_brain = true;
@@ -264,17 +313,28 @@ canvas{
     
     var world;
     
+    var average_success = 0, average_counts = 0;
+    
     var x, y, direction = 0;
+    
+    var usealg = false, forcerand = false;
     
     var trainingdata = [], istraining = false, traininggoal = 7500, trainedpoints = 0;
     var network = run_from_brain ? new brain.NeuralNetwork().fromJSON(brainstate) : new brain.NeuralNetwork({hiddenLayers:[5,3]});
     
-    var image = new Image();
-    image.src = '/images/game/cop.png';
+    var copimage = new Image();
+    copimage.src = '/images/game/cop.png';
+    
+    var carimage = new Image();
+    carimage.src = '/images/game/car.png';
     
     self.getX = GetX;
     self.getY = GetY;
     self.getAngle = GetAngle;
+    self.getSuccess = GetSuccess;
+    
+    self.useAlgorithm = UseAlgorithm;
+    self.forceRandom = ForceRandom;
     
     self.act = Act;
     
@@ -291,10 +351,21 @@ canvas{
     function GetAngle(){
       return direction - Math.PI*2*Math.floor(direction / (Math.PI*2));
     }
+    function GetSuccess(){
+      return average_success;
+    }
     
     function Act(){
-      if(run_from_brain) ActNeuralNet(); else ActRandom();
       CheckWalls();
+      
+      self.VIEW_ANGLE += 0.034;
+      average_success = (average_success*average_counts + (GetView().length > 0 ? 1 : 0)) / ++average_counts;
+      self.VIEW_ANGLE -= 0.034;
+      
+      if(forcerand) return ActRandom();
+      if(usealg) return ActAlgorithm();
+      
+      if(run_from_brain) ActNeuralNet(); else ActRandom();
       if(continue_training) TryTraining();
     }
     function CheckWalls(){
@@ -316,6 +387,10 @@ canvas{
         left = Math.random() < 0.5;
       }
       if(left) TurnLeft(); else TurnRight();
+    }
+    
+    function ActAlgorithm(){
+      TryTraining();
     }
     
     function DefaultTrainer(){
@@ -343,6 +418,12 @@ canvas{
       var response = network.run(data);
       var move = response[0];
       var turn = response[1];
+      
+      UseNetworkOutput({move:move, turn:turn});
+    }
+    function UseNetworkOutput(output){
+      var move = output.move;
+      var turn = output.turn;
       
       if(move > 2/3) Move(true); else if(move < 1/3) Move(false);
       if(turn > 0.5) TurnRight(); else TurnLeft();
@@ -397,6 +478,8 @@ canvas{
       ];
     }
     function Train(data){
+      if(usealg) return UseNetworkOutput(data);
+      
       var normalized_input = FormInputData(data.donut);
       
       var normalized_output = [
@@ -470,7 +553,7 @@ canvas{
       ctx.arc(0, 0, view_radius, -self.VIEW_ANGLE, self.VIEW_ANGLE, false);
       ctx.fill();
       
-      ctx.drawImage(image, -self.RENDER_WIDTH/2, -self.RENDER_HEIGHT/2, self.RENDER_WIDTH, self.RENDER_HEIGHT);
+      ctx.drawImage(forcerand ? carimage : copimage, -self.RENDER_WIDTH/2, -self.RENDER_HEIGHT/2, self.RENDER_WIDTH, self.RENDER_HEIGHT);
       
       ctx.restore();
     }
@@ -499,6 +582,13 @@ canvas{
       return Math.sqrt(Math.pow(x2-x1,2)+Math.pow(y2-y1,2));
     }
     
+    function UseAlgorithm(bool){
+      usealg = bool;
+    }
+    function ForceRandom(bool){
+      forcerand = bool;
+    }
+    
     var constructor = Overload.function();
     constructor.overload(function(){
       this(new World());
@@ -519,7 +609,7 @@ canvas{
     return this([canvas], Renderer);
   }, ['object', 'function']);
   LoadCanvas.overload(function(canvases, Renderer){
-    var contexts = [], width, height;
+    var contexts = [];
     var stopRender = false, isRunning = false;
     
     (function Load(){
@@ -535,12 +625,13 @@ canvas{
         ResizeCanvas(canvas);
     }
     function ResizeCanvas(canvas){
-      width = canvas.width = canvas.offsetWidth;
-      height = canvas.height = canvas.offsetHeight;
+      if(!document.contains(canvas)) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
     }
     
     function Render(){
-      Renderer(canvases, contexts, width, height);
+      Renderer(canvases, contexts);
     }
     function Stop(){
       stopRender = true;
@@ -553,7 +644,7 @@ canvas{
         if(stopRender) return;
         
         requestAnimationFrame(Run);
-        Renderer(canvases, contexts, width, height);
+        Renderer(canvases, contexts);
       })();
     }
     
