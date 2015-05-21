@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<style>
+
+body{
+  text-align:center;
+  
+  background:rgb(21,31,41);
+}
+
+canvas.main{
+  width:100%;
+  height:100%;
+  
+  background:rgb(255,255,255);
+}
+
+.reset{
+  position:absolute;
+  
+  top:20px;
+  left:20px;
+  
+  padding:14px 26px;
+  
+  background:rgba(255,255,255,0.85);
+  
+  cursor:pointer;
+  
+  text-transform:uppercase;
+  font-size:16px;
+  font-family:arial;
+  
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+}
+
+.center{
+  position:relative;
+  
+  width:100vh;
+  height:100vh;
+  
+  display:inline-block;
+}
+
+</style>
+<html>
+<head>
+
+<title></title>
+
+<meta charset="utf-8" />
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta content="minimum-scale=1.0, width=device-width, maximum-scale=1, user-scalable=no" name="viewport"/>
+
+<link rel="stylesheet" href="/resources/css/resets.css"/>
+
+<script src='/resources/scripts/game/overload.min.js'></script>
+<script src='/resources/scripts/game/brain.js'></script>
+
+</head>
+<body>
+
+
+<div class='center'>
+  <div class='reset'>Reset</div>
+  <canvas class='main'></canvas>
+</div>
+
+
+<script type='text/javascript'>
+(function(){
+  
+  var controller;
+  
+  var points = {
+    negative: [],
+    positive: []
+  }, network, trainingdata = [];
+  
+  window.addEventListener('load', Init);
+  
+  function Init(){
+    document.querySelector('.reset').addEventListener('click', Reset);
+    
+    network = new brain.NeuralNetwork();
+    
+    var canvas = document.querySelector('canvas');
+    
+    canvas.addEventListener('click', ClickListener);
+    canvas.addEventListener('contextmenu', RightClickListener);
+    
+    controller = LoadCanvas(canvas, RenderGame);
+    controller.start();
+    
+    AddTwoPoints();
+  }
+  
+  function Reset(){
+    points.negative = [];
+    points.positive = [];
+    trainingdata = [];
+    
+    AddTwoPoints();
+  }
+  
+  function AddTwoPoints(){
+    Train({target:{width:1, height:1}, layerY: Math.random(), layerX: Math.random()}, 1);
+    Train({target:{width:1, height:1}, layerY: Math.random(), layerX: Math.random()}, 0);
+  }
+  
+  function RightClickListener(event){
+    event.preventDefault();
+    Train(event, 0);
+  }
+  function ClickListener(event){
+    Train(event, 1);
+  }
+  
+  function Train(event, output){
+    var input = [
+      event.layerX / event.target.width,
+      event.layerY / event.target.height
+    ];
+    
+    if(output == 0) points.negative.push(input);
+    else points.positive.push(input);
+    
+    trainingdata.push({
+      input: input,
+      output: [output]
+    });
+    
+    console.log('Training...');
+    network.train(trainingdata, {
+      iterations: 9000
+    });
+    console.log('Training Complete');
+  }
+  
+  
+  
+  function RenderGame(canvases, contexts){
+    var canvas = canvases[0],
+        ctx = contexts[0],
+        width = canvas.width,
+        height = canvas.height;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    if(trainingdata.length > 0){
+      const squaresize = 10;
+      
+      ctx.globalAlpha = 0.25;
+    
+      for(var x=0; x<=1; x+=squaresize/width)
+        for(var y=0; y<=1; y+=squaresize/height){
+          var response = network.run([x, y]);
+          ctx.fillStyle = response < 0.5 ? 'rgb(255,0,0)' : 'rgb(0,255,0)';
+          ctx.fillRect(x*width, y*height, squaresize, squaresize);
+        }
+      
+      ctx.globalAlpha = 1;
+    }
+    
+    ctx.fillStyle = 'rgb(0,255,0)';
+    
+    for(var i=0,pos; pos=points.positive[i++];){
+      var x = pos[0]*width,
+          y = pos[1]*height;
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI*2, false);
+      ctx.fill();
+      ctx.stroke();
+    }
+    
+    ctx.fillStyle = 'rgb(255,0,0)';
+    
+    for(var i=0,pos; pos=points.negative[i++];){
+      var x = pos[0]*width,
+          y = pos[1]*height;
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI*2, false);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  
+  var LoadCanvas = Overload.function();
+  LoadCanvas.overload(function(canvas, Renderer){
+    return this([canvas], Renderer);
+  }, ['object', 'function']);
+  LoadCanvas.overload(function(canvases, Renderer){
+    var contexts = [];
+    var stopRender = false, isRunning = false;
+    
+    (function Load(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        contexts.push(canvas.getContext('2d'));
+      
+      ResizeCanvases();
+      window.addEventListener('resize', ResizeCanvases);
+    })();
+    
+    function ResizeCanvases(){
+      for(var i=0,canvas; canvas=canvases[i++];)
+        ResizeCanvas(canvas);
+    }
+    function ResizeCanvas(canvas){
+      if(!document.contains(canvas)) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    
+    function Render(){
+      Renderer(canvases, contexts);
+    }
+    function Stop(){
+      stopRender = true;
+    }
+    function Start(){
+      if(isRunning) return;
+      stopRender = false;
+      
+      (function Run(){
+        if(stopRender) return;
+        
+        requestAnimationFrame(Run);
+        Renderer(canvases, contexts);
+      })();
+    }
+    
+    return {
+      'stop': Stop,
+      'start': Start,
+      'render': Render
+    };
+  }, ['array', 'function']);
+  
+})();
+</script>
+</body>
+</html>

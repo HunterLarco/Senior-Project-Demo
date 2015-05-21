@@ -39,10 +39,18 @@ class GameHandler(webapp2.RequestHandler):
     self.response.out.write(template.render(path, template_values))
 
 
+class NetHandler(webapp2.RequestHandler):
+  def get(self):
+    template_values = {}
+    path = os.path.join(os.path.dirname(__file__), 'netplayer.html')
+    self.response.out.write(template.render(path, template_values))
+
+
 app = webapp2.WSGIApplication([
                 ('/presentation/?', PresentationHandler),
                 ('/controller/?', MainHandler),
                 ('/player/?', PianoPlayerHandler),
                 ('/demos/colors/?', ColorsHandler),
-                ('/game/?', GameHandler)
+                ('/game/?', GameHandler),
+                ('/net/?', NetHandler)
               ], debug=True)
